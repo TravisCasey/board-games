@@ -24,8 +24,10 @@ class GamestateTemplate(ABC):
         pass
 
     @abstractmethod
-    def get_moves(self):
-        """Returns a collection of all legal moves.
+    def valid_moves(self):
+        """This property is a collection of all legal moves.
+
+        Should be implemented with the property decorator.
         
         Returns:
             A list of instances of the proper subclass of the
@@ -35,8 +37,10 @@ class GamestateTemplate(ABC):
         pass
     
     @abstractmethod
-    def get_winner(self):
+    def winner(self):
         """Determines which player won the game, if any.
+
+        Should be implemented with the property decorator.
         
         Returns:
         1: Team 1 won.
@@ -58,7 +62,7 @@ class GamestateTemplate(ABC):
     
     @abstractmethod
     def copy(self):
-        """Returns a deep copy of the state.
+        """Returns a deep copy of the currnet state.
         
         Returns: 
             An identical but distinct object as the instance with this

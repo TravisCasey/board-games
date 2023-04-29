@@ -229,3 +229,70 @@ class TestCheckersGamestate(unittest.TestCase):
         self.assertFalse(self.gamestate_3.is_valid(self.move_38))
         self.assertTrue(self.gamestate_3.is_valid(self.move_39))
         self.assertFalse(self.gamestate_3.is_valid(self.move_40))
+
+    def test_jump_tree(self):
+        self.assertFalse(self.gamestate_1.jump_tree((0, 1), 1, []))
+        self.assertFalse(self.gamestate_1.jump_tree((2, 3), 1, []))
+        self.assertEqual(self.gamestate_1. jump_tree((1, 2), -2, []),
+                         [((3, 0),), ((3, 4),)])
+
+        self.assertEqual(self.gamestate_2.jump_tree((1, 2), 1, []),
+                         [((3, 4),)])
+        self.assertFalse(self.gamestate_2.jump_tree((1, 4), 1, []))
+        self.assertFalse(self.gamestate_2.jump_tree((3, 6), 2, []))
+        self.assertEqual(self.gamestate_2.jump_tree((5, 4), 1, []),
+                         [((7, 2),), ((7, 6),)])
+        self.assertEqual(self.gamestate_2.jump_tree((6, 5), -2, []),
+                         [((4, 3), (2, 1), (0, 3), (2, 5), (4, 7)),
+                          ((4, 7), (2, 5), (0, 3), (2, 1), (4, 3))])
+        self.gamestate_2.board[6][5] = 0
+        self.assertEqual(self.gamestate_2.jump_tree((6, 5), -2, []),
+                         [((4, 3), (2, 1), (0, 3), (2, 5), (4, 7), (6, 5)),
+                          ((4, 7), (2, 5), (0, 3), (2, 1), (4, 3), (6, 5))])
+
+    def test_valid_moves(self):
+        self.assertEqual([move[:] for move in self.gamestate_1.valid_moves],
+                         [((2, 1), (3, 0)), ((2, 1), (3, 2)),
+                          ((2, 3), (3, 2)), ((2, 3), (3, 4)),
+                          ((2, 5), (3, 4)), ((2, 5), (3, 6)),
+                          ((2, 7), (3, 6))])
+        self.gamestate_1.board[2][1] = 0
+        self.assertEqual([move[:] for move in self.gamestate_1.valid_moves],
+                         [((2, 1), (3, 0)), ((2, 1), (3, 2)),
+                          ((2, 3), (3, 2)), ((2, 3), (3, 4)),
+                          ((2, 5), (3, 4)), ((2, 5), (3, 6)),
+                          ((2, 7), (3, 6))])
+        self.gamestate_1._valid_moves = []
+        self.assertEqual([move[:] for move in self.gamestate_1.valid_moves],
+                         [((1, 0), (2, 1)), ((1, 2), (2, 1)),
+                          ((2, 3), (3, 2)), ((2, 3), (3, 4)),
+                          ((2, 5), (3, 4)), ((2, 5), (3, 6)),
+                          ((2, 7), (3, 6))])
+        self.gamestate_1.turn = -1
+        self.assertEqual([move[:] for move in self.gamestate_1.valid_moves],
+                         [((5, 0), (4, 1)),
+                          ((5, 2), (4, 1)), ((5, 2), (4, 3)),
+                          ((5, 4), (4, 3)), ((5, 4), (4, 5)),
+                          ((5, 6), (4, 5)), ((5, 6), (4, 7))])
+
+        self.assertEqual([move[:] for move in self.gamestate_2.valid_moves],
+                         [((1, 2), (3, 4)),
+                          ((3, 2), (5, 0), (7, 2)),
+                          ((5, 4), (7, 2)), ((5, 4), (7, 6)),
+                          ((5, 6), (7, 4))])
+        self.gamestate_2.turn = -1
+        self.assertEqual([move[:] for move in self.gamestate_2.valid_moves],
+                         [((2, 3), (0, 1)),
+                          ((6, 3), (4, 5), (2, 7)),
+                          ((6, 5), (4, 3), (2, 1), (0, 3),
+                           (2, 5), (4, 7), (6, 5)),
+                          ((6, 5), (4, 7), (2, 5), (0, 3),
+                           (2, 1), (4, 3), (6, 5))])
+
+        self.assertEqual([move[:] for move in self.gamestate_3.valid_moves],
+                         [((1, 2), (2, 1)), ((1, 2), (2, 3)),
+                          ((2, 5), (1, 4)), ((2, 5), (1, 6)),
+                          ((2, 5), (3, 4)), ((2, 5), (3, 6))])
+        self.gamestate_3.turn = -1
+        self.assertEqual([move[:] for move in self.gamestate_3.valid_moves],
+                         [((0, 1), (2, 3))])

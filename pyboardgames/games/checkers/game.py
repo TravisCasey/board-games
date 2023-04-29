@@ -93,9 +93,19 @@ class CheckersGamestate(GamestateTemplate):
             )
         else:
             self.board = board
-        self.turn = turn
+        self._turn = turn
         self._valid_moves = []
         self._winner = None
+
+    @property
+    def turn(self):
+        return self._turn
+
+    @turn.setter
+    def turn(self, new_turn):
+        if new_turn != self._turn:
+            self._turn = new_turn
+            self._valid_moves = []
 
     def jumps(self, square, piece):
         """Determines where a piece can jump to, if at all.
@@ -192,8 +202,71 @@ class CheckersGamestate(GamestateTemplate):
 
         return True
 
+    def jump_tree(self, square, piece, capt_list):
+        """Finds all jump moves from a given square and piece.
+
+        Args:
+            square: The square to analyze jumps from.
+            piece: The piece on the square (note the piece may not be
+                there on the board.)
+            capt_list: A list of pieces that have previously been
+                captured in the recursion. When initializing, use
+                an empty list.
+
+        Returns:
+            A list contiaining tuples. Each tuple is a chain of jumps
+            originating from the square input. The tuples themselves
+            contain tuples representing squares that the chain lands on.
+            These chains have all squares except the starting point.
+        """
+
+        return_list = []
+        jump_dict = self.jumps(square, piece)
+        for end, jump in jump_dict.items():
+            if jump not in capt_list:
+                jump_list = self.jump_tree(end, piece, capt_list + [jump])
+                if not jump_list:
+                    return_list += [(end,)]
+                else:
+                    return_list += [(end,) + tup for tup in jump_list]
+        return return_list
+
     @property
     def valid_moves(self):
+        """Returns a list of all valid moves in this state.
+
+        Returns:
+            List of CheckerMove instances that constitute all valid
+            moves for the current turn holder in this state.
+        """
+
+        if not self._valid_moves:
+            # Captures
+            for row in range(8):
+                for col in range(8):
+                    piece = self.board[row][col]
+                    if piece in self.TEAM_PIECES[self.turn]:
+                        self.board[row][col] = 0
+                        jump_list = self.jump_tree((row, col), piece, [])
+                        self._valid_moves += [CheckersMove(((row, col),) + tup)
+                                              for tup in jump_list]
+                        self.board[row][col] = piece
+
+            # Simple moves
+            if not self._valid_moves:
+                for row in range(8):
+                    for col in range(8):
+                        piece = self.board[row][col]
+                        if piece in self.TEAM_PIECES[self.turn]:
+                            for d in self.PIECE_DIRS[piece]:
+                                if (row + d[0] in range(8)
+                                        and col + d[1] in range(8)
+                                        and self.board[row+d[0]][col+d[1]]
+                                        == 0):
+                                    move = CheckersMove(((row, col),
+                                                         (row+d[0], col+d[1])))
+                                    self._valid_moves.append(move)
+
         return self._valid_moves
 
     def get_next(self, move):
@@ -213,4 +286,3 @@ class CheckersGamestate(GamestateTemplate):
     @property
     def winner(self):
         return self._winner
-

@@ -53,8 +53,7 @@ class TestCheckersGamestate(unittest.TestCase):
         self.move_4 = game.CheckersMove(((5, 2), (4, 3)))
         self.move_5 = game.CheckersMove(((2, 6), (3, 5)))
         self.move_6 = game.CheckersMove(((2, 6), (1, 7)))
-        self.gamestate_2 = game.CheckersGamestate()
-        self.gamestate_2.board = np.asarray(
+        self.gamestate_2 = game.CheckersGamestate(board=np.asarray(
             [[0,  0,  0,  0,  0,  1,  0,  0],
              [0,  0,  1,  0,  1,  0,  0,  0],
              [0,  0,  0, -1,  0,  0,  0,  0],
@@ -63,7 +62,7 @@ class TestCheckersGamestate(unittest.TestCase):
              [0,  0, -1,  0,  1,  0,  1,  0],
              [0, -1,  0, -1,  0, -2,  0,  0],
              [0,  0,  0,  0,  0,  0,  0,  0]]
-        )
+        ))
         self.move_7 = game.CheckersMove(((1, 2), (2, 1)))
         self.move_8 = game.CheckersMove(((1, 2), (2, 3)))
         self.move_9 = game.CheckersMove(((1, 2), (3, 4)))
@@ -97,8 +96,7 @@ class TestCheckersGamestate(unittest.TestCase):
         self.move_28 = game.CheckersMove(((6, 5), (4, 7), (2, 5)))
         self.move_29 = game.CheckersMove(((6, 5), (0, 3)))
         self.move_30 = game.CheckersMove(((6, 3), (4, 5), (2, 7)))
-        self.gamestate_3 = game.CheckersGamestate()
-        self.gamestate_3.board = np.asarray(
+        self.gamestate_3 = game.CheckersGamestate(board=np.asarray(
             [[0, -2,  0,  0,  0,  0,  0,  0],
              [0,  0,  1,  0,  0,  0,  0,  0],
              [0,  0,  0,  0,  0,  2,  0,  0],
@@ -107,7 +105,7 @@ class TestCheckersGamestate(unittest.TestCase):
              [0,  0,  0,  0,  0,  0,  0,  0],
              [0,  0,  0,  0,  0, -2,  0,  0],
              [0,  0,  0,  0,  0,  0,  0,  0]]
-        )
+        ))
         self.move_31 = game.CheckersMove(((1, 2), (2, 1)))
         self.move_32 = game.CheckersMove(((1, 2), (2, 1), (3, 2)))
         self.move_33 = game.CheckersMove(((1, 2), (0, 3)))

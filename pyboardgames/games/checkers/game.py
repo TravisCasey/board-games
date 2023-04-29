@@ -69,20 +69,31 @@ class CheckersGamestate(GamestateTemplate):
 
     PIECE_TEAMS = {1: 1, 2: 1, 0: 0, -1: -1, -2: -1}
 
-    def __init__(self):
-        """Initializes the beginning of a game of checkers."""
+    def __init__(self, board=None, turn=1):
+        """Initializes the beginning of a game of checkers.
 
-        self.board = np.asarray(
-            [[0,  1,  0,  1,  0,  1,  0,  1],
-             [1,  0,  1,  0,  1,  0,  1,  0],
-             [0,  1,  0,  1,  0,  1,  0,  1],
-             [0,  0,  0,  0,  0,  0,  0,  0],
-             [0,  0,  0,  0,  0,  0,  0,  0],
-             [-1, 0, -1,  0, -1,  0, -1,  0],
-             [0, -1,  0, -1,  0, -1,  0, -1],
-             [-1, 0, -1,  0, -1,  0, -1,  0]]
-        )
-        self.turn = 1
+        Args:
+            board: An 8x8 numpy array representing the game board. If no
+                argument or None is passed, the board is initialized to
+                the starting board.
+            turn: An integer 1 or -1 noting if its team 1 or team 2
+                turn, respectively. Default value 1.
+        """
+
+        if board is None:
+            self.board = np.asarray(
+                [[0,  1,  0,  1,  0,  1,  0,  1],
+                 [1,  0,  1,  0,  1,  0,  1,  0],
+                 [0,  1,  0,  1,  0,  1,  0,  1],
+                 [0,  0,  0,  0,  0,  0,  0,  0],
+                 [0,  0,  0,  0,  0,  0,  0,  0],
+                 [-1, 0, -1,  0, -1,  0, -1,  0],
+                 [0, -1,  0, -1,  0, -1,  0, -1],
+                 [-1, 0, -1,  0, -1,  0, -1,  0]]
+            )
+        else:
+            self.board = board
+        self.turn = turn
         self._valid_moves = []
         self._winner = None
 
@@ -185,11 +196,15 @@ class CheckersGamestate(GamestateTemplate):
     def valid_moves(self):
         return self._valid_moves
 
-    def update(self, move):
+    def get_next(self, move):
         """Updates the gamestate according to the provided move.
 
         Args:
             move: CheckersMove instance.
+
+        Returns:
+            A new CheckersGamestate instance that reflects the changes
+            from the given move.
         """
 
     def is_game_over(self):
@@ -199,5 +214,3 @@ class CheckersGamestate(GamestateTemplate):
     def winner(self):
         return self._winner
 
-    def copy(self):
-        pass

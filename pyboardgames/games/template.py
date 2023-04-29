@@ -14,12 +14,17 @@ from abc import ABC, abstractmethod
 class GamestateTemplate(ABC):
 
     @abstractmethod
-    def update(self, move):
-        """Updates the gamestate according to the provided move.
+    def get_next(self, move):
+        """Creates a new gamestate according to the provided move.
 
         Args:
             move: An instance of a subclass of the MoveTemplate abstract
                 class created for the game being played.
+
+        Returns:
+            A new instance of a subclass of the GamestateTemplate
+            abstract class created for the game being played. This
+            reflects the changes made by the provided move.
         """
         pass
 
@@ -57,16 +62,6 @@ class GamestateTemplate(ABC):
         Returns:
         True: game has ended.
         False: game has not ended.
-        """
-        pass
-
-    @abstractmethod
-    def copy(self):
-        """Returns a deep copy of the currnet state.
-
-        Returns:
-            An identical but distinct object as the instance with this
-            method.
         """
         pass
 

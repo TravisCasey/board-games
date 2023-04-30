@@ -2,6 +2,7 @@
 
 import unittest
 import numpy as np
+import random
 from context import game
 
 
@@ -441,3 +442,32 @@ class TestCheckersGamestate(unittest.TestCase):
         self.gamestate_2.plys_since_cap = 80
         self.assertTrue(self.gamestate_2.is_game_over())
         self.assertEqual(self.gamestate_2.winner, 0)
+
+
+class TestCheckersFunctional(unittest.TestCase):
+
+    def test_random_game(self):
+        """Simulate 100 random games with randomly selected moves."""
+        finished = 0
+        max_count = 100
+        wins_1 = 0
+        wins_2 = 0
+        draws = 0
+        while finished < max_count:
+            gamestate = game.CheckersGamestate()
+            while not gamestate.is_game_over():
+                move = random.choice(gamestate.valid_moves)
+                gamestate = gamestate.get_next(move)
+            finished += 1
+            match gamestate.winner:
+                case 1:
+                    wins_1 += 1
+                case -1:
+                    wins_2 += 1
+                case 0:
+                    draws += 1
+        # Would likely indicate an error.
+        self.assertFalse(wins_1 == max_count)
+        self.assertFalse(wins_2 == max_count)
+        self.assertFalse(draws == max_count)
+        self.assertTrue(wins_1 + wins_2 + draws == finished)

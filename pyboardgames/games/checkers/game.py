@@ -69,7 +69,7 @@ class CheckersGamestate(GamestateTemplate):
 
     PIECE_TEAMS = {1: 1, 2: 1, 0: 0, -1: -1, -2: -1}
 
-    def __init__(self, board=None, turn=1):
+    def __init__(self, board=None, turn=1, plys=0, plys_since_cap=0):
         """Initializes the beginning of a game of checkers.
 
         Args:
@@ -78,6 +78,11 @@ class CheckersGamestate(GamestateTemplate):
                 the starting board.
             turn: An integer 1 or -1 noting if its team 1 or team 2
                 turn, respectively. Default value 1.
+            plys: An integer tracking the number of plys (half-turns)
+                taken in this game.
+            plys_since_cap: An integer tracking the number of plys since
+                the last capture. Used to implement the 40 turn draw
+                rule.
         """
 
         if board is None:
@@ -96,6 +101,8 @@ class CheckersGamestate(GamestateTemplate):
         self._turn = turn
         self._valid_moves = []
         self._winner = None
+        self.plys = plys
+        self.plys_since_cap = plys_since_cap
 
     @property
     def turn(self):
@@ -103,9 +110,19 @@ class CheckersGamestate(GamestateTemplate):
 
     @turn.setter
     def turn(self, new_turn):
+        """Turn variable should not be set directly, but can be useful
+        for debug and testing. In this case, valid_moves should be
+        recalculated.
+        """
+
         if new_turn != self._turn:
             self._turn = new_turn
             self._valid_moves = []
+
+    @property
+    def turn_count(self):
+        """A ply is a half turn."""
+        return (self.plys // 2) + 1
 
     def jumps(self, square, piece):
         """Determines where a piece can jump to, if at all.
@@ -147,6 +164,7 @@ class CheckersGamestate(GamestateTemplate):
             True: move is valid.
             False: otherwise.
         """
+        # FIXME: is this method necessary
 
         # Check if there is a piece of the correct team at the first
         # position of the move.
@@ -159,7 +177,7 @@ class CheckersGamestate(GamestateTemplate):
         if move[1] in jump_dict:
             # List tracks squares pieces are captured on to avoid
             # loops, as pieces are not actually removed from the board.
-            captured = [jump_dict[move[1]]]
+            capt = [jump_dict[move[1]]]
             # Temporarily remove starting piece from the board as it is
             # a valid square for the piece to land on after a series of
             # jumps.
@@ -170,15 +188,15 @@ class CheckersGamestate(GamestateTemplate):
                 if end not in jump_dict:
                     self.board[move[0]] = piece
                     return False
-                elif jump_dict[end] in captured:
+                elif jump_dict[end] in capt:
                     self.board[move[0]] = piece
                     return False
                 else:
-                    captured.append(jump_dict[end])
+                    capt.append(jump_dict[end])
 
             jump_dict = self.jumps(move[-1], piece)
             for square in jump_dict.values():
-                if square not in captured:
+                if square not in capt:
                     self.board[move[0]] = piece
                     return False
             self.board[move[0]] = piece
@@ -202,14 +220,14 @@ class CheckersGamestate(GamestateTemplate):
 
         return True
 
-    def jump_tree(self, square, piece, capt_list):
+    def jump_tree(self, square, piece, capt):
         """Finds all jump moves from a given square and piece.
 
         Args:
             square: The square to analyze jumps from.
             piece: The piece on the square (note the piece may not be
                 there on the board.)
-            capt_list: A list of pieces that have previously been
+            capt: A list of pieces that have previously been
                 captured in the recursion. When initializing, use
                 an empty list.
 
@@ -223,8 +241,8 @@ class CheckersGamestate(GamestateTemplate):
         return_list = []
         jump_dict = self.jumps(square, piece)
         for end, jump in jump_dict.items():
-            if jump not in capt_list:
-                jump_list = self.jump_tree(end, piece, capt_list + [jump])
+            if jump not in capt:
+                jump_list = self.jump_tree(end, piece, capt + [jump])
                 if not jump_list:
                     return_list += [(end,)]
                 else:
@@ -272,6 +290,9 @@ class CheckersGamestate(GamestateTemplate):
     def get_next(self, move):
         """Updates the gamestate according to the provided move.
 
+        Note this method does not check that the move is valid; it is
+        assumed that the move is sourced from the valid_moves list.
+
         Args:
             move: CheckersMove instance.
 
@@ -279,6 +300,32 @@ class CheckersGamestate(GamestateTemplate):
             A new CheckersGamestate instance that reflects the changes
             from the given move.
         """
+
+        next_state = CheckersGamestate(board=np.copy(self.board),
+                                       turn=-self.turn,
+                                       plys=self.plys+1,
+                                       plys_since_cap=self.plys_since_cap+1)
+
+        piece = next_state.board[move[0]]
+        next_state.board[move[0]] = 0
+
+        # Remove captured pieces, if applicable.
+        for start, end in zip(move[:], move[1:]):
+            diff = (end[0] - start[0], end[1] - start[1])
+            if diff[0] in (-2, 2) and diff[1] in (-2, 2):
+                cap_square = (start[0] + diff[0]//2, start[1] + diff[1]//2)
+                next_state.board[cap_square] = 0
+                next_state.plys_since_cap = 0
+
+        # Check if piece becomes a king.
+        if self.turn == 1 and move[-1][0] == 7:
+            next_state.board[move[-1]] = 2
+        elif self.turn == -1 and move[-1][0] == 0:
+            next_state.board[move[-1]] = -2
+        else:
+            next_state.board[move[-1]] = piece
+
+        return next_state
 
     def is_game_over(self):
         pass

@@ -145,7 +145,7 @@ class CheckersGamestate(GamestateTemplate):
             if (step_1[0] in range(8)
                     and step_1[1] in range(8)
                     and step_2[0] in range(8)
-                    and step_1[1] in range(8)):
+                    and step_2[1] in range(8)):
                 if (self.board[step_1] in
                         self.TEAM_PIECES[-self.PIECE_TEAMS[piece]]
                         and self.board[step_2] == 0):
@@ -327,9 +327,23 @@ class CheckersGamestate(GamestateTemplate):
 
         return next_state
 
-    def is_game_over(self):
-        pass
-
     @property
     def winner(self):
+        """Determines the winner of the game, if any.
+
+        Returns:
+            1: Team 1 wins
+            0: Draw (40 turn since last capture.)
+            -1: Team 2 wins
+            None: Game is not over yet - no winner.
+        """
+
+        if self._winner is None:
+            if not self.valid_moves:
+                self._winner = -self.turn
+            elif self.plys_since_cap >= 80:
+                self._winner = 0
         return self._winner
+
+    def is_game_over(self):
+        return self.winner is not None

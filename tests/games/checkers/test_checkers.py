@@ -412,3 +412,32 @@ class TestCheckersGamestate(unittest.TestCase):
         self.assertEqual(new_gamestate_2.plys, 1)
         self.assertEqual(new_gamestate_2.turn_count, 1)
         self.assertEqual(new_gamestate_2.plys_since_cap, 0)
+
+    def test_winner(self):
+        self.assertIsNone(self.gamestate_1.winner)
+        self.assertFalse(self.gamestate_1.is_game_over())
+        self.assertIsNone(self.gamestate_2.winner)
+        self.assertFalse(self.gamestate_2.is_game_over())
+        self.assertIsNone(self.gamestate_3.winner)
+        self.assertFalse(self.gamestate_3.is_game_over())
+
+        self.gamestate_3.board[4][1] = 0
+        self.gamestate_3.board[6][5] = 0
+        self.gamestate_3.board[2][3] = 2
+        self.assertIsNone(self.gamestate_3.winner)
+        self.assertFalse(self.gamestate_3.is_game_over())
+        self.gamestate_3.turn = -1
+        self.assertFalse(self.gamestate_3.is_game_over())
+        self.assertIsNone(self.gamestate_3.winner)
+        self.gamestate_3.board[1][0] = 1
+        self.gamestate_3.turn = 1
+        self.assertFalse(self.gamestate_3.is_game_over())
+        self.assertIsNone(self.gamestate_3.winner)
+        self.gamestate_3.turn = -1
+        self.assertTrue(self.gamestate_3.is_game_over())
+        self.assertEqual(self.gamestate_3.winner, 1)
+
+        self.assertFalse(self.gamestate_2.is_game_over())
+        self.gamestate_2.plys_since_cap = 80
+        self.assertTrue(self.gamestate_2.is_game_over())
+        self.assertEqual(self.gamestate_2.winner, 0)

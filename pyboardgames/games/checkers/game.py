@@ -18,7 +18,7 @@ class CheckersMove(MoveTemplate):
     """
 
     def __init__(self, squares):
-        """Initializes move wrapper.
+        """Initialize move wrapper.
 
         Args:
             squares: A tuple of coordinates, each cooresponding to a
@@ -30,7 +30,6 @@ class CheckersMove(MoveTemplate):
                 or if their values exceed that of the sizes of the
                 board; they should be 0 to 7.
         """
-
         if type(squares) is not tuple:
             raise TypeError('Expected squares input as a tuple.')
         if len(squares) < 2:
@@ -46,9 +45,11 @@ class CheckersMove(MoveTemplate):
         self._squares = squares
 
     def __getitem__(self, key):
+        """Allow direct access to squares tuple."""
         return self._squares[key]
 
     def __len__(self):
+        """Length of move is number of squares involved."""
         return len(self._squares)
 
 
@@ -70,7 +71,7 @@ class CheckersGamestate(GamestateTemplate):
     PIECE_TEAMS = {1: 1, 2: 1, 0: 0, -1: -1, -2: -1}
 
     def __init__(self, board=None, turn=1, plys=0, plys_since_cap=0):
-        """Initializes the beginning of a game of checkers.
+        """Initialize the beginning of a game of checkers.
 
         Args:
             board: An 8x8 numpy array representing the game board. If no
@@ -84,7 +85,6 @@ class CheckersGamestate(GamestateTemplate):
                 the last capture. Used to implement the 40 turn draw
                 rule.
         """
-
         if board is None:
             self.board = np.asarray(
                 [[0,  1,  0,  1,  0,  1,  0,  1],
@@ -106,15 +106,17 @@ class CheckersGamestate(GamestateTemplate):
 
     @property
     def turn(self):
+        """Get turn attribute."""
         return self._turn
 
     @turn.setter
     def turn(self, new_turn):
-        """Turn variable should not be set directly, but can be useful
+        """Set turn attribute and reser valid moves attribute.
+
+        Turn attribute should not be set directly, but can be useful
         for debug and testing. In this case, valid_moves should be
         recalculated.
         """
-
         if new_turn != self._turn:
             self._turn = new_turn
             self._valid_moves = []
@@ -125,7 +127,7 @@ class CheckersGamestate(GamestateTemplate):
         return (self.plys // 2) + 1
 
     def jumps(self, square, piece):
-        """Determines where a piece can jump to, if at all.
+        """Determine where a piece can jump to, if at all.
 
         Args:
             square: A tuple indicating the square of the piece to check.
@@ -135,7 +137,6 @@ class CheckersGamestate(GamestateTemplate):
             A dictionary where the keys are valid squares to jump to
             and the corresponding entries are the squares jumped over.
         """
-
         steps = [((square[0] + d[0], square[1] + d[1]),
                   (square[0] + 2*d[0], square[1] + 2*d[1]))
                  for d in self.PIECE_DIRS[piece]]
@@ -155,7 +156,7 @@ class CheckersGamestate(GamestateTemplate):
         return return_list
 
     def is_valid(self, move):
-        """Checks if the given move is valid.
+        """Check if the given move is valid.
 
         Args:
             move: CheckersMove instance
@@ -221,7 +222,7 @@ class CheckersGamestate(GamestateTemplate):
         return True
 
     def jump_tree(self, square, piece, capt):
-        """Finds all jump moves from a given square and piece.
+        """Find all jump moves from a given square and piece.
 
         Args:
             square: The square to analyze jumps from.
@@ -237,7 +238,6 @@ class CheckersGamestate(GamestateTemplate):
             contain tuples representing squares that the chain lands on.
             These chains have all squares except the starting point.
         """
-
         return_list = []
         jump_dict = self.jumps(square, piece)
         for end, jump in jump_dict.items():
@@ -251,13 +251,12 @@ class CheckersGamestate(GamestateTemplate):
 
     @property
     def valid_moves(self):
-        """Returns a list of all valid moves in this state.
+        """Return a list of all valid moves in this state.
 
         Returns:
             List of CheckerMove instances that constitute all valid
             moves for the current turn holder in this state.
         """
-
         if not self._valid_moves:
             # Captures
             for row in range(8):
@@ -288,7 +287,7 @@ class CheckersGamestate(GamestateTemplate):
         return self._valid_moves
 
     def get_next(self, move):
-        """Updates the gamestate according to the provided move.
+        """Update the gamestate according to the provided move.
 
         Note this method does not check that the move is valid; it is
         assumed that the move is sourced from the valid_moves list.
@@ -300,7 +299,6 @@ class CheckersGamestate(GamestateTemplate):
             A new CheckersGamestate instance that reflects the changes
             from the given move.
         """
-
         next_state = CheckersGamestate(board=np.copy(self.board),
                                        turn=-self.turn,
                                        plys=self.plys+1,
@@ -329,7 +327,7 @@ class CheckersGamestate(GamestateTemplate):
 
     @property
     def winner(self):
-        """Determines the winner of the game, if any.
+        """Determine the winner of the game, if any.
 
         Returns:
             1: Team 1 wins
@@ -337,7 +335,6 @@ class CheckersGamestate(GamestateTemplate):
             -1: Team 2 wins
             None: Game is not over yet - no winner.
         """
-
         if self._winner is None:
             if not self.valid_moves:
                 self._winner = -self.turn
@@ -346,4 +343,5 @@ class CheckersGamestate(GamestateTemplate):
         return self._winner
 
     def is_game_over(self):
+        """Determine if there is a winner of the game."""
         return self.winner is not None

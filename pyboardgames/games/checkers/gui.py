@@ -15,6 +15,7 @@ from pyboardgames.games.checkers.game import CheckersGamestate
 class CheckersGUI():
     """The pygame graphical interface for the checkers game."""
 
+    # RGB(A) colors
     LIGHT = (255, 190, 125)
     DARK = (255, 127, 63)
     RED = (255, 0, 0)
@@ -24,6 +25,8 @@ class CheckersGUI():
     GRAY = (127, 127, 127)
     SEL = (0, 255, 255, 100)
     VALID = (127, 255, 0, 127)
+
+    # Object sizes
     SQ_PIX = 80
     WINDOW_SIZE = (8 * SQ_PIX, 9 * SQ_PIX)
     NEW_BUTTON = (int(5.5 * SQ_PIX),

@@ -35,8 +35,15 @@ class CheckersGUI():
                   SQ_PIX // 2)
     TEXT_SIZE = SQ_PIX // 3
 
-    def __init__(self):
-        """Initialize pygame, the window, widgets, and the game."""
+    def __init__(self, player1=None, player2=None):
+        """Initialize pygame, the window, widgets, agents and the game.
+
+        Args:
+            player1: A keyword argument for the agent instance for
+                the first player. Default value is None. If the input is
+                None, the gui expects manual input from the user.
+            player2: Same as player1, but for player 2.
+        """
         pygame.init()
         self.window = pygame.display.set_mode(self.WINDOW_SIZE)
         pygame.display.set_caption('Checkers')
@@ -45,6 +52,9 @@ class CheckersGUI():
         self.button_rect = pygame.Rect(self.NEW_BUTTON)
         self.button_text = pygame.font.Font(size=self.TEXT_SIZE)
         self.msg_text = pygame.font.Font(size=self.TEXT_SIZE)
+
+        self.player1 = player1
+        self.player2 = player2
 
         self.reset()
         self.draw_background()
@@ -111,7 +121,8 @@ class CheckersGUI():
         self.window.blit(text_surf, text_rect)
 
         text_surf = self.button_text.render(self.msg, True, self.BLACK)
-        text_rect = text_surf.get_rect(center=(int(1.5 * self.SQ_PIX), int(8.5*self.SQ_PIX)))
+        text_rect = text_surf.get_rect(center=(int(1.5 * self.SQ_PIX),
+                                               int(8.5 * self.SQ_PIX)))
         self.window.blit(text_surf, text_rect)
 
     def reset(self):
@@ -120,8 +131,30 @@ class CheckersGUI():
         self.gamestate = CheckersGamestate()
         self.msg = "Red's move"
 
+    def update(self, move):
+        """Update the gamestate and attributes with provided move.
+
+        move: An instance of the CheckersMove class.
+        """
+        self.gamestate = self.gamestate.get_next(move)
+        self.move_tracker = []
+        if self.gamestate.is_game_over():
+            match self.gamestate.winner:
+                case 1:
+                    self.msg = 'Red wins!'
+                case 0:
+                    self.msg = 'Draw'
+                case -1:
+                    self.msg = 'Black wins!'
+        else:
+            match self.gamestate.turn:
+                case 1:
+                    self.msg = "Red's turn"
+                case -1:
+                    self.msg = "Black's turn"
+
     def event_handler(self, event):
-        """Handle user input and feed moves to gamestate.
+        """Handle user input.
 
         Args:
             event: A pygame event object to be handled by this method.
@@ -130,7 +163,8 @@ class CheckersGUI():
             # User presses new game button.
             if self.button_rect.collidepoint(pygame.mouse.get_pos()):
                 self.reset()
-            else:
+            elif ((self.gamestate.turn == 1 and self.player1 is None)
+                  or (self.gamestate.turn == -1 and self.player2 is None)):
                 row = event.pos[1] // self.SQ_PIX
                 col = event.pos[0] // self.SQ_PIX
                 valid = False
@@ -140,22 +174,7 @@ class CheckersGUI():
                     if (list(move[:len(self.move_tracker)+1])
                             == self.move_tracker + [(row, col)]):
                         if len(self.move_tracker) == len(move) - 1:
-                            self.gamestate = self.gamestate.get_next(move)
-                            self.move_tracker = []
-                            if self.gamestate.is_game_over():
-                                match self.gamestate.winner:
-                                    case 1:
-                                        self.msg = 'Red wins!'
-                                    case 0:
-                                        self.msg = 'Draw'
-                                    case -1:
-                                        self.msg = 'Black wins!'
-                            else:
-                                match self.gamestate.turn:
-                                    case 1:
-                                        self.msg = "Red's turn"
-                                    case -1:
-                                        self.msg = "Black's turn"
+                            self.update(move)
                         else:
                             if self.move_tracker:
                                 self.msg = 'Jump again!'
@@ -175,6 +194,16 @@ class CheckersGUI():
                     if not valid:
                         self.move_tracker = []
 
+    def get_agent_move(self):
+        """Source move from non-user agents."""
+        if not self.gamestate.is_game_over():
+            if self.gamestate.turn == 1 and self.player1 is not None:
+                move = self.player1.get_move(self.gamestate)
+                self.update(move)
+            elif self.gamestate.turn == -1 and self.player2 is not None:
+                move = self.player2.get_move(self.gamestate)
+                self.update(move)
+
     def main_loop(self):
         """Run the graphical interface and detect user input."""
         run = True
@@ -187,6 +216,7 @@ class CheckersGUI():
                     run = False
                 else:
                     self.event_handler(event)
+            self.get_agent_move()
 
             self.draw_menu()
             self.draw_overlays()

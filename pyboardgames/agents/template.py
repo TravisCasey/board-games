@@ -11,10 +11,12 @@ class AgentTemplate(ABC):
     """Defines the class structure for a custom gamestate."""
 
     @abstractmethod
-    def __init__(self, time=0.0):
+    def __init__(self, name, time=0.0):
         """Initialize the agent.
 
         Args:
+            name: A descriptive name for the agent to be displayed on
+                the gui.
             time: Agents should handle the keyword argument for time.
                 This is a float representing the time in seconds the
                 agent has to work before it must pick a move. The

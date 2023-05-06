@@ -1,3 +1,5 @@
+"""Various scripts to run and test the checkers gui."""
+
 from context import gui, RandomAgent
 import sys
 
@@ -7,3 +9,5 @@ match sys.argv[1]:
     case '2': gui.CheckersGUI(player2=RandomAgent())
     case '3': gui.CheckersGUI(player1=RandomAgent(),
                               player2=RandomAgent())
+    case '4': gui.CheckersGUI(player1=RandomAgent(),
+                              a_time=0)

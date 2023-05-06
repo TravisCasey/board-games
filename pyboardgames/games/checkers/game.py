@@ -43,6 +43,8 @@ class CheckersMove(MoveTemplate):
                 raise ValueError('Rows and columns should be in 0 to 7.')
 
         self._squares = squares
+        self._jumps = []
+        self._dirs = []
 
     def __getitem__(self, key):
         """Allow direct access to squares tuple."""
@@ -51,6 +53,30 @@ class CheckersMove(MoveTemplate):
     def __len__(self):
         """Length of move is number of squares involved."""
         return len(self._squares)
+
+    @property
+    def jumps(self):
+        """Determine which squares are jumped, if any.
+
+        May have unexpected results on invalid moves.
+        """
+        if not self._jumps:
+            for start, end in zip(self._squares, self._squares[1:]):
+                diff = (end[0] - start[0], end[1] - start[1])
+                if diff[0] in (-2, 2) and diff[1] in (-2, 2):
+                    self._jumps.append((start[0] + diff[0] // 2,
+                                        start[1] + diff[1] // 2))
+        return self._jumps
+
+    @property
+    def dirs(self):
+        """Determine directions of moves."""
+        if not self._dirs:
+            for start, end in zip(self._squares, self._squares[1:]):
+                diff = (end[0] - start[0], end[1] - start[1])
+                self._dirs.append((1 if diff[0] > 0 else -1,
+                                   1 if diff[1] > 0 else -1))
+        return self._dirs
 
 
 class CheckersGamestate(GamestateTemplate):

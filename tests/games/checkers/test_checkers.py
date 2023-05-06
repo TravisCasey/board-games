@@ -12,6 +12,9 @@ class TestCheckersMove(unittest.TestCase):
         self.move_1 = game.CheckersMove(((0, 1), (2, 3),
                                         (4, 5), (6, 7)))
         self.move_2 = game.CheckersMove(((2, 1), (3, 0)))
+        self.move_3 = game.CheckersMove(((2, 3), (4, 1)))
+        self.move_4 = game.CheckersMove(((2, 3), (0, 1)))
+        self.move_5 = game.CheckersMove(((2, 3), (0, 5)))
 
     def test_init(self):
         with self.assertRaises(TypeError):
@@ -42,6 +45,18 @@ class TestCheckersMove(unittest.TestCase):
         with self.assertRaises(TypeError):
             self.move_1['one':'three']
             self.move_2[True]
+
+    def test_jumps(self):
+        self.assertEqual(self.move_1.jumps, [(1, 2), (3, 4), (5, 6)])
+        self.assertEqual(self.move_2.jumps, [])
+        self.assertEqual(self.move_3.jumps, [(3, 2)])
+
+    def test_dirs(self):
+        self.assertEqual(self.move_1.dirs, [(1, 1), (1, 1), (1, 1)])
+        self.assertEqual(self.move_2.dirs, [(1, -1)])
+        self.assertEqual(self.move_3.dirs, [(1, -1)])
+        self.assertEqual(self.move_4.dirs, [(-1, -1)])
+        self.assertEqual(self.move_5.dirs, [(-1, 1)])
 
 
 class TestCheckersGamestate(unittest.TestCase):
@@ -302,15 +317,14 @@ class TestCheckersGamestate(unittest.TestCase):
         new_gamestate_1 = self.gamestate_1.get_next(self.move_1)
         self.assertIsInstance(new_gamestate_1, game.CheckersGamestate)
         self.assertTrue((new_gamestate_1.board == np.asarray(
-                [[0,  1,  0,  1,  0,  1,  0,  1],
-                 [1,  0,  1,  0,  1,  0,  1,  0],
-                 [0,  0,  0,  1,  0,  1,  0,  1],
-                 [1,  0,  0,  0,  0,  0,  0,  0],
-                 [0,  0,  0,  0,  0,  0,  0,  0],
-                 [-1, 0, -1,  0, -1,  0, -1,  0],
-                 [0, -1,  0, -1,  0, -1,  0, -1],
-                 [-1, 0, -1,  0, -1,  0, -1,  0]]
-            )).all())
+            [[0,  1,  0,  1,  0,  1,  0,  1],
+             [1,  0,  1,  0,  1,  0,  1,  0],
+             [0,  0,  0,  1,  0,  1,  0,  1],
+             [1,  0,  0,  0,  0,  0,  0,  0],
+             [0,  0,  0,  0,  0,  0,  0,  0],
+             [-1, 0, -1,  0, -1,  0, -1,  0],
+             [0, -1,  0, -1,  0, -1,  0, -1],
+             [-1, 0, -1,  0, -1,  0, -1,  0]])).all())
         self.assertEqual(new_gamestate_1.turn, -1)
         self.assertEqual(new_gamestate_1.plys, 1)
         self.assertEqual(new_gamestate_1.turn_count, 1)
@@ -318,15 +332,14 @@ class TestCheckersGamestate(unittest.TestCase):
         new_gamestate_1 = new_gamestate_1.get_next(self.move_3)
         self.assertIsInstance(new_gamestate_1, game.CheckersGamestate)
         self.assertTrue((new_gamestate_1.board == np.asarray(
-                [[0,  1,  0,  1,  0,  1,  0,  1],
-                 [1,  0,  1,  0,  1,  0,  1,  0],
-                 [0,  0,  0,  1,  0,  1,  0,  1],
-                 [1,  0,  0,  0,  0,  0,  0,  0],
-                 [0, -1,  0,  0,  0,  0,  0,  0],
-                 [-1, 0,  0,  0, -1,  0, -1,  0],
-                 [0, -1,  0, -1,  0, -1,  0, -1],
-                 [-1, 0, -1,  0, -1,  0, -1,  0]]
-            )).all())
+            [[0,  1,  0,  1,  0,  1,  0,  1],
+             [1,  0,  1,  0,  1,  0,  1,  0],
+             [0,  0,  0,  1,  0,  1,  0,  1],
+             [1,  0,  0,  0,  0,  0,  0,  0],
+             [0, -1,  0,  0,  0,  0,  0,  0],
+             [-1, 0,  0,  0, -1,  0, -1,  0],
+             [0, -1,  0, -1,  0, -1,  0, -1],
+             [-1, 0, -1,  0, -1,  0, -1,  0]])).all())
         self.assertEqual(new_gamestate_1.turn, 1)
         self.assertEqual(new_gamestate_1.plys, 2)
         self.assertEqual(new_gamestate_1.turn_count, 2)
@@ -335,15 +348,14 @@ class TestCheckersGamestate(unittest.TestCase):
         new_gamestate_1 = self.gamestate_1.get_next(self.move_2)
         self.assertIsInstance(new_gamestate_1, game.CheckersGamestate)
         self.assertTrue((new_gamestate_1.board == np.asarray(
-                [[0,  1,  0,  1,  0,  1,  0,  1],
-                 [1,  0,  1,  0,  1,  0,  1,  0],
-                 [0,  0,  0,  1,  0,  1,  0,  1],
-                 [0,  0,  1,  0,  0,  0,  0,  0],
-                 [0,  0,  0,  0,  0,  0,  0,  0],
-                 [-1, 0, -1,  0, -1,  0, -1,  0],
-                 [0, -1,  0, -1,  0, -1,  0, -1],
-                 [-1, 0, -1,  0, -1,  0, -1,  0]]
-            )).all())
+            [[0,  1,  0,  1,  0,  1,  0,  1],
+             [1,  0,  1,  0,  1,  0,  1,  0],
+             [0,  0,  0,  1,  0,  1,  0,  1],
+             [0,  0,  1,  0,  0,  0,  0,  0],
+             [0,  0,  0,  0,  0,  0,  0,  0],
+             [-1, 0, -1,  0, -1,  0, -1,  0],
+             [0, -1,  0, -1,  0, -1,  0, -1],
+             [-1, 0, -1,  0, -1,  0, -1,  0]])).all())
         self.assertEqual(new_gamestate_1.turn, -1)
         self.assertEqual(new_gamestate_1.plys, 1)
         self.assertEqual(new_gamestate_1.turn_count, 1)
@@ -351,15 +363,14 @@ class TestCheckersGamestate(unittest.TestCase):
         new_gamestate_1 = new_gamestate_1.get_next(self.move_4)
         self.assertIsInstance(new_gamestate_1, game.CheckersGamestate)
         self.assertTrue((new_gamestate_1.board == np.asarray(
-                [[0,  1,  0,  1,  0,  1,  0,  1],
-                 [1,  0,  1,  0,  1,  0,  1,  0],
-                 [0,  0,  0,  1,  0,  1,  0,  1],
-                 [0,  0,  1,  0,  0,  0,  0,  0],
-                 [0,  0,  0, -1,  0,  0,  0,  0],
-                 [-1, 0,  0,  0, -1,  0, -1,  0],
-                 [0, -1,  0, -1,  0, -1,  0, -1],
-                 [-1, 0, -1,  0, -1,  0, -1,  0]]
-            )).all())
+            [[0,  1,  0,  1,  0,  1,  0,  1],
+             [1,  0,  1,  0,  1,  0,  1,  0],
+             [0,  0,  0,  1,  0,  1,  0,  1],
+             [0,  0,  1,  0,  0,  0,  0,  0],
+             [0,  0,  0, -1,  0,  0,  0,  0],
+             [-1, 0,  0,  0, -1,  0, -1,  0],
+             [0, -1,  0, -1,  0, -1,  0, -1],
+             [-1, 0, -1,  0, -1,  0, -1,  0]])).all())
         self.assertEqual(new_gamestate_1.turn, 1)
         self.assertEqual(new_gamestate_1.plys, 2)
         self.assertEqual(new_gamestate_1.turn_count, 2)
@@ -374,8 +385,7 @@ class TestCheckersGamestate(unittest.TestCase):
              [0,  0,  0,  0,  0,  0,  0,  0],
              [0,  0, -1,  0,  1,  0,  1,  0],
              [0,  0,  0, -1,  0, -2,  0,  0],
-             [0,  0,  2,  0,  0,  0,  0,  0]]
-            )).all())
+             [0,  0,  2,  0,  0,  0,  0,  0]])).all())
         self.assertEqual(new_gamestate_2.turn, -1)
         self.assertEqual(new_gamestate_2.plys, 1)
         self.assertEqual(new_gamestate_2.turn_count, 1)
@@ -391,8 +401,7 @@ class TestCheckersGamestate(unittest.TestCase):
              [0, -1,  0,  0,  0,  0,  0,  0],
              [0,  0, -1,  0,  0,  0,  0,  0],
              [0, -1,  0, -1,  0, -2,  0,  0],
-             [0,  0,  0,  0,  0,  0,  0,  0]]
-            )).all())
+             [0,  0,  0,  0,  0,  0,  0,  0]])).all())
         self.assertEqual(new_gamestate_2.turn, 1)
         self.assertEqual(new_gamestate_2.plys, 1)
         self.assertEqual(new_gamestate_2.turn_count, 1)
@@ -407,8 +416,7 @@ class TestCheckersGamestate(unittest.TestCase):
              [0, -1,  0,  0,  0,  0,  0,  0],
              [0,  0, -1,  0,  0,  0,  0,  0],
              [0, -1,  0, -1,  0, -2,  0,  0],
-             [0,  0,  0,  0,  0,  0,  0,  0]]
-            )).all())
+             [0,  0,  0,  0,  0,  0,  0,  0]])).all())
         self.assertEqual(new_gamestate_2.turn, 1)
         self.assertEqual(new_gamestate_2.plys, 1)
         self.assertEqual(new_gamestate_2.turn_count, 1)

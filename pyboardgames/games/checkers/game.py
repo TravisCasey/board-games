@@ -181,72 +181,6 @@ class CheckersGamestate(GamestateTemplate):
                 continue
         return return_list
 
-    def is_valid(self, move):
-        """Check if the given move is valid.
-
-        Args:
-            move: CheckersMove instance
-
-        Returns:
-            True: move is valid.
-            False: otherwise.
-        """
-        # FIXME: is this method necessary
-
-        # Check if there is a piece of the correct team at the first
-        # position of the move.
-        piece = self.board[move[0]]
-        if piece not in self.TEAM_PIECES[self.turn]:
-            return False
-
-        # Handles moves that are jumps.
-        jump_dict = self.jumps(move[0], piece)
-        if move[1] in jump_dict:
-            # List tracks squares pieces are captured on to avoid
-            # loops, as pieces are not actually removed from the board.
-            capt = [jump_dict[move[1]]]
-            # Temporarily remove starting piece from the board as it is
-            # a valid square for the piece to land on after a series of
-            # jumps.
-            self.board[move[0]] = 0
-
-            for start, end in zip(move[1:], move[2:]):
-                jump_dict = self.jumps(start, piece)
-                if end not in jump_dict:
-                    self.board[move[0]] = piece
-                    return False
-                elif jump_dict[end] in capt:
-                    self.board[move[0]] = piece
-                    return False
-                else:
-                    capt.append(jump_dict[end])
-
-            jump_dict = self.jumps(move[-1], piece)
-            for square in jump_dict.values():
-                if square not in capt:
-                    self.board[move[0]] = piece
-                    return False
-            self.board[move[0]] = piece
-
-        # Handles simple moves.
-        elif (len(move) == 2
-              and self.board[move[1]] == 0
-              and (move[1][0] - move[0][0], move[1][1] - move[0][1])
-              in self.PIECE_DIRS[piece]):
-            # Test if any other pieces can jump
-            for row in range(8):
-                for col in range(8):
-                    test_piece = self.board[row][col]
-                    if test_piece in self.TEAM_PIECES[self.turn]:
-                        if self.jumps((row, col), test_piece):
-                            return False
-
-        # Any other type of move is invalid.
-        else:
-            return False
-
-        return True
-
     def jump_tree(self, square, piece, capt):
         """Find all jump moves from a given square and piece.
 
@@ -334,12 +268,10 @@ class CheckersGamestate(GamestateTemplate):
         next_state.board[move[0]] = 0
 
         # Remove captured pieces, if applicable.
-        for start, end in zip(move[:], move[1:]):
-            diff = (end[0] - start[0], end[1] - start[1])
-            if diff[0] in (-2, 2) and diff[1] in (-2, 2):
-                cap_square = (start[0] + diff[0]//2, start[1] + diff[1]//2)
-                next_state.board[cap_square] = 0
-                next_state.plys_since_cap = 0
+        if move.jumps:
+            next_state.plys_since_cap = 0
+            for square in move.jumps:
+                next_state.board[square] = 0
 
         # Check if piece becomes a king.
         if self.turn == 1 and move[-1][0] == 7:

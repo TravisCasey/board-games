@@ -1,7 +1,7 @@
 """Abstract classes used as templates for creating custom agents.
 
 At minimum, a new agent must sublcass the following class and have the
-methods below implemented for the to play the games.
+methods below implemented to play the games.
 """
 
 from abc import ABC, abstractmethod

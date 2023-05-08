@@ -86,25 +86,24 @@ class CheckersGamestate(GamestateTemplate):
     the checkers gamestate.
     """
 
-    TEAM_PIECES = {1:  (1, 2),
-                   -1: (-1, -2)}
+    TEAM_PIECES = [(1, 2), (-1, -2)]
 
     PIECE_DIRS = {1:  ((1, -1), (1, 1)),
                   -1: ((-1, -1), (-1, 1)),
                   2:  ((-1, -1), (-1, 1), (1, -1), (1, 1)),
                   -2: ((-1, -1), (-1, 1), (1, -1), (1, 1))}
 
-    PIECE_TEAMS = {1: 1, 2: 1, 0: 0, -1: -1, -2: -1}
+    PIECE_TEAMS = {1: 0, 2: 0, -1: 1, -2: 1}
 
-    def __init__(self, board=None, turn=1, plys=0, plys_since_cap=0):
+    def __init__(self, board=None, turn=0, plys=0, plys_since_cap=0):
         """Initialize the beginning of a game of checkers.
 
         Args:
             board: An 8x8 numpy array representing the game board. If no
                 argument or None is passed, the board is initialized to
                 the starting board.
-            turn: An integer 1 or -1 noting if its team 1 or team 2
-                turn, respectively. Default value 1.
+            turn: An integer 0 or 1 noting if its red or black turn,
+                respectively. Default value 0.
             plys: An integer tracking the number of plys (half-turns)
                 taken in this game.
             plys_since_cap: An integer tracking the number of plys since
@@ -127,30 +126,114 @@ class CheckersGamestate(GamestateTemplate):
         self._turn = turn
         self._valid_moves = []
         self._winner = None
+        self._score = None
         self.plys = plys
         self.plys_since_cap = plys_since_cap
 
     @property
     def turn(self):
-        """Get turn attribute."""
+        """Get turn attribute.
+
+        Returns:
+            0: Red's turn
+            1: Black's turn
+        """
         return self._turn
 
     @turn.setter
     def turn(self, new_turn):
-        """Set turn attribute and reser valid moves attribute.
+        """Set turn attribute and reset valid moves attribute.
 
         Turn attribute should not be set directly, but can be useful
-        for debug and testing. In this case, valid_moves should be
-        recalculated.
+        for debug and testing. In this case, valid_moves, score, and
+        winner should be recalculated.
         """
         if new_turn != self._turn:
             self._turn = new_turn
             self._valid_moves = []
+            self._winner = None
+            self._score = None
 
     @property
     def turn_count(self):
-        """A ply is a half turn."""
+        """A ply is a half turn.
+
+        Returns:
+            An integer corresponding to turns since the beginning of the
+            game. Starts at 1, and increases after two plies.
+        """
         return (self.plys // 2) + 1
+
+    @property
+    def score(self):
+        """Score the current position.
+
+        Returns: A 9-digit integer. From left to right, these encode:
+            1-2: Measures piece count and value for each team.
+                +5 for turn player king, -5 for opponent king.
+                +3 for turn player man, -3 for opponent man.
+            3-4: Measures how close pieces are to becoming kings.
+                For turn player, points are awarded according to how
+                many rows each man is away from the end row. The
+                negative of the same is awarded to the opponent.
+            5-6: Measure of how many pieces are left on the board. If
+                turn player is ahead according to the other heuristics,
+                pieces left on the board are a detriment and are
+                subtracted from the score; if the turn player is losing,
+                pieces are instead added to the score. This encourages
+                trading while ahead.
+            7-9: Measures how well-placed kings are. Encourages
+                centering kings. Both row and column are scored
+                according to the equation -x(x-7), which is 0 on the
+                edges and maximal towards the center.
+        """
+        if self._score is None:
+            self._score = 0
+            piece_count = 0
+            for row in range(8):
+                for col in range(8):
+                    match self.board[row][col]:
+                        case 1:
+                            if self.turn == 0:
+                                self._score += 30000000
+                                self._score += row * 100000
+                            elif self.turn == 1:
+                                self._score -= 30000000
+                                self._score -= row * 100000
+                            piece_count += 1
+                        case 2:
+                            if self.turn == 0:
+                                self._score += 50000000
+                                self._score += row * (7 - row)
+                                self._score += col * (7 - col)
+                            elif self.turn == 1:
+                                self._score -= 50000000
+                                self._score -= row * (7 - row)
+                                self._score -= col * (7 - col)
+                            piece_count += 1
+                        case -1:
+                            if self.turn == 1:
+                                self._score += 30000000
+                                self._score += (7 - row) * 100000
+                            elif self.turn == 0:
+                                self._score -= 30000000
+                                self._score -= (7 - row) * 100000
+                            piece_count += 1
+                        case -2:
+                            if self.turn == 1:
+                                self._score += 50000000
+                                self._score += row * (7 - row)
+                                self._score += col * (7 - col)
+                            elif self.turn == 0:
+                                self._score -= 50000000
+                                self._score -= row * (7 - row)
+                                self._score -= col * (7 - col)
+                            piece_count += 1
+            if self._score > 0:
+                self._score -= piece_count * 1000
+            elif self._score < 0:
+                self._score += piece_count * 1000
+        return self._score
 
     def jumps(self, square, piece):
         """Determine where a piece can jump to, if at all.
@@ -174,7 +257,7 @@ class CheckersGamestate(GamestateTemplate):
                     and step_2[0] in range(8)
                     and step_2[1] in range(8)):
                 if (self.board[step_1] in
-                        self.TEAM_PIECES[-self.PIECE_TEAMS[piece]]
+                        self.TEAM_PIECES[-self.PIECE_TEAMS[piece]+1]
                         and self.board[step_2] == 0):
                     return_list[step_2] = step_1
             else:
@@ -260,7 +343,7 @@ class CheckersGamestate(GamestateTemplate):
             from the given move.
         """
         next_state = CheckersGamestate(board=np.copy(self.board),
-                                       turn=-self.turn,
+                                       turn=-self.turn+1,
                                        plys=self.plys+1,
                                        plys_since_cap=self.plys_since_cap+1)
 
@@ -274,9 +357,9 @@ class CheckersGamestate(GamestateTemplate):
                 next_state.board[square] = 0
 
         # Check if piece becomes a king.
-        if self.turn == 1 and move[-1][0] == 7:
+        if self.turn == 0 and move[-1][0] == 7:
             next_state.board[move[-1]] = 2
-        elif self.turn == -1 and move[-1][0] == 0:
+        elif self.turn == 1 and move[-1][0] == 0:
             next_state.board[move[-1]] = -2
         else:
             next_state.board[move[-1]] = piece
@@ -288,16 +371,16 @@ class CheckersGamestate(GamestateTemplate):
         """Determine the winner of the game, if any.
 
         Returns:
-            1: Team 1 wins
-            0: Draw (40 turn since last capture.)
-            -1: Team 2 wins
+            0: Red wins
+            1: Black wins
+            -1: Draw (40 turn since last capture.)
             None: Game is not over yet - no winner.
         """
         if self._winner is None:
             if not self.valid_moves:
-                self._winner = -self.turn
+                self._winner = -self.turn+1
             elif self.plys_since_cap >= 80:
-                self._winner = 0
+                self._winner = -1
         return self._winner
 
     def is_game_over(self):

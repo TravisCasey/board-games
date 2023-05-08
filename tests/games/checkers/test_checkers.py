@@ -133,6 +133,24 @@ class TestCheckersGamestate(unittest.TestCase):
         self.move_39 = game.CheckersMove(((0, 1), (2, 3)))
         self.move_40 = game.CheckersMove(((0, 1), (1, 0)))
 
+    def test_score(self):
+        self.assertEqual(self.gamestate_1.score, 0)
+        self.gamestate_1.turn = 1
+        self.assertEqual(self.gamestate_1.score, 0)
+
+        self.assertTrue(self.gamestate_2.score > 0)
+        score_red = self.gamestate_2.score
+        self.gamestate_2.turn = 1
+        self.assertTrue(self.gamestate_2.score < 0)
+        self.assertEqual(self.gamestate_2.score, -score_red)
+
+        self.assertTrue(self.gamestate_3.score < 0)
+        score_red = self.gamestate_3.score
+        self.gamestate_3.turn = 1
+        self.assertTrue(self.gamestate_3.score > 0)
+        self.assertEqual(self.gamestate_3.score, -score_red)
+        self.assertEqual(self.gamestate_3.score, 50195002)
+
     def test_jumps(self):
         self.assertEqual(self.gamestate_1.jumps((0, 1), 1), {})
         self.assertEqual(self.gamestate_1.jumps((2, 1), 1), {})
@@ -158,93 +176,6 @@ class TestCheckersGamestate(unittest.TestCase):
         self.assertFalse(self.gamestate_3.jumps((2, 5), 1))
         self.assertFalse(self.gamestate_3.jumps((2, 5), -1))
         self.assertFalse(self.gamestate_3.jumps((2, 5), -2))
-
-    def test_is_valid(self):
-        self.assertTrue(self.gamestate_1.is_valid(self.move_1))
-        self.assertTrue(self.gamestate_1.is_valid(self.move_2))
-        self.assertFalse(self.gamestate_1.is_valid(self.move_3))
-        self.assertFalse(self.gamestate_1.is_valid(self.move_4))
-        self.assertFalse(self.gamestate_1.is_valid(self.move_5))
-        self.assertFalse(self.gamestate_1.is_valid(self.move_6))
-        self.gamestate_1.turn = -1
-        self.assertFalse(self.gamestate_1.is_valid(self.move_1))
-        self.assertFalse(self.gamestate_1.is_valid(self.move_2))
-        self.assertTrue(self.gamestate_1.is_valid(self.move_3))
-        self.assertTrue(self.gamestate_1.is_valid(self.move_4))
-        self.assertFalse(self.gamestate_1.is_valid(self.move_5))
-        self.assertFalse(self.gamestate_1.is_valid(self.move_6))
-
-        self.assertFalse(self.gamestate_2.is_valid(self.move_7))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_8))
-        self.assertTrue(self.gamestate_2.is_valid(self.move_9))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_10))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_11))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_12))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_13))
-        self.assertTrue(self.gamestate_2.is_valid(self.move_14))
-        self.assertTrue(self.gamestate_2.is_valid(self.move_15))
-        self.assertTrue(self.gamestate_2.is_valid(self.move_16))
-        self.assertTrue(self.gamestate_2.is_valid(self.move_17))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_18))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_19))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_20))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_21))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_22))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_23))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_24))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_25))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_26))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_27))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_28))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_29))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_30))
-        self.gamestate_2.turn = -1
-        self.assertFalse(self.gamestate_2.is_valid(self.move_7))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_8))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_9))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_10))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_11))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_12))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_13))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_14))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_15))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_16))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_17))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_18))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_19))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_20))
-        self.assertTrue(self.gamestate_2.is_valid(self.move_21))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_22))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_23))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_24))
-        self.assertTrue(self.gamestate_2.is_valid(self.move_25))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_26))
-        self.assertTrue(self.gamestate_2.is_valid(self.move_27))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_28))
-        self.assertFalse(self.gamestate_2.is_valid(self.move_29))
-        self.assertTrue(self.gamestate_2.is_valid(self.move_30))
-
-        self.assertTrue(self.gamestate_3.is_valid(self.move_31))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_32))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_33))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_34))
-        self.assertTrue(self.gamestate_3.is_valid(self.move_35))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_36))
-        self.assertTrue(self.gamestate_3.is_valid(self.move_37))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_38))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_39))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_40))
-        self.gamestate_3.turn = -1
-        self.assertFalse(self.gamestate_3.is_valid(self.move_31))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_32))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_33))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_34))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_35))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_36))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_37))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_38))
-        self.assertTrue(self.gamestate_3.is_valid(self.move_39))
-        self.assertFalse(self.gamestate_3.is_valid(self.move_40))
 
     def test_jump_tree(self):
         self.assertFalse(self.gamestate_1.jump_tree((0, 1), 1, []))
@@ -284,7 +215,7 @@ class TestCheckersGamestate(unittest.TestCase):
                           ((2, 3), (3, 2)), ((2, 3), (3, 4)),
                           ((2, 5), (3, 4)), ((2, 5), (3, 6)),
                           ((2, 7), (3, 6))])
-        self.gamestate_1.turn = -1
+        self.gamestate_1.turn = 1
         self.assertEqual([move[:] for move in self.gamestate_1.valid_moves],
                          [((5, 0), (4, 1)),
                           ((5, 2), (4, 1)), ((5, 2), (4, 3)),
@@ -296,7 +227,7 @@ class TestCheckersGamestate(unittest.TestCase):
                           ((3, 2), (5, 0), (7, 2)),
                           ((5, 4), (7, 2)), ((5, 4), (7, 6)),
                           ((5, 6), (7, 4))])
-        self.gamestate_2.turn = -1
+        self.gamestate_2.turn = 1
         self.assertEqual([move[:] for move in self.gamestate_2.valid_moves],
                          [((2, 3), (0, 1)),
                           ((6, 3), (4, 5), (2, 7)),
@@ -309,7 +240,7 @@ class TestCheckersGamestate(unittest.TestCase):
                          [((1, 2), (2, 1)), ((1, 2), (2, 3)),
                           ((2, 5), (1, 4)), ((2, 5), (1, 6)),
                           ((2, 5), (3, 4)), ((2, 5), (3, 6))])
-        self.gamestate_3.turn = -1
+        self.gamestate_3.turn = 1
         self.assertEqual([move[:] for move in self.gamestate_3.valid_moves],
                          [((0, 1), (2, 3))])
 
@@ -325,7 +256,7 @@ class TestCheckersGamestate(unittest.TestCase):
              [-1, 0, -1,  0, -1,  0, -1,  0],
              [0, -1,  0, -1,  0, -1,  0, -1],
              [-1, 0, -1,  0, -1,  0, -1,  0]])).all())
-        self.assertEqual(new_gamestate_1.turn, -1)
+        self.assertEqual(new_gamestate_1.turn, 1)
         self.assertEqual(new_gamestate_1.plys, 1)
         self.assertEqual(new_gamestate_1.turn_count, 1)
         self.assertEqual(new_gamestate_1.plys_since_cap, 1)
@@ -340,7 +271,7 @@ class TestCheckersGamestate(unittest.TestCase):
              [-1, 0,  0,  0, -1,  0, -1,  0],
              [0, -1,  0, -1,  0, -1,  0, -1],
              [-1, 0, -1,  0, -1,  0, -1,  0]])).all())
-        self.assertEqual(new_gamestate_1.turn, 1)
+        self.assertEqual(new_gamestate_1.turn, 0)
         self.assertEqual(new_gamestate_1.plys, 2)
         self.assertEqual(new_gamestate_1.turn_count, 2)
         self.assertEqual(new_gamestate_1.plys_since_cap, 2)
@@ -356,7 +287,7 @@ class TestCheckersGamestate(unittest.TestCase):
              [-1, 0, -1,  0, -1,  0, -1,  0],
              [0, -1,  0, -1,  0, -1,  0, -1],
              [-1, 0, -1,  0, -1,  0, -1,  0]])).all())
-        self.assertEqual(new_gamestate_1.turn, -1)
+        self.assertEqual(new_gamestate_1.turn, 1)
         self.assertEqual(new_gamestate_1.plys, 1)
         self.assertEqual(new_gamestate_1.turn_count, 1)
         self.assertEqual(new_gamestate_1.plys_since_cap, 1)
@@ -371,7 +302,7 @@ class TestCheckersGamestate(unittest.TestCase):
              [-1, 0,  0,  0, -1,  0, -1,  0],
              [0, -1,  0, -1,  0, -1,  0, -1],
              [-1, 0, -1,  0, -1,  0, -1,  0]])).all())
-        self.assertEqual(new_gamestate_1.turn, 1)
+        self.assertEqual(new_gamestate_1.turn, 0)
         self.assertEqual(new_gamestate_1.plys, 2)
         self.assertEqual(new_gamestate_1.turn_count, 2)
         self.assertEqual(new_gamestate_1.plys_since_cap, 2)
@@ -386,12 +317,12 @@ class TestCheckersGamestate(unittest.TestCase):
              [0,  0, -1,  0,  1,  0,  1,  0],
              [0,  0,  0, -1,  0, -2,  0,  0],
              [0,  0,  2,  0,  0,  0,  0,  0]])).all())
-        self.assertEqual(new_gamestate_2.turn, -1)
+        self.assertEqual(new_gamestate_2.turn, 1)
         self.assertEqual(new_gamestate_2.plys, 1)
         self.assertEqual(new_gamestate_2.turn_count, 1)
         self.assertEqual(new_gamestate_2.plys_since_cap, 0)
 
-        self.gamestate_2.turn = -1
+        self.gamestate_2.turn = 1
         new_gamestate_2 = self.gamestate_2.get_next(self.move_25)
         self.assertTrue((new_gamestate_2.board == np.asarray(
             [[0,  0,  0,  0,  0,  1,  0,  0],
@@ -402,7 +333,7 @@ class TestCheckersGamestate(unittest.TestCase):
              [0,  0, -1,  0,  0,  0,  0,  0],
              [0, -1,  0, -1,  0, -2,  0,  0],
              [0,  0,  0,  0,  0,  0,  0,  0]])).all())
-        self.assertEqual(new_gamestate_2.turn, 1)
+        self.assertEqual(new_gamestate_2.turn, 0)
         self.assertEqual(new_gamestate_2.plys, 1)
         self.assertEqual(new_gamestate_2.turn_count, 1)
         self.assertEqual(new_gamestate_2.plys_since_cap, 0)
@@ -417,7 +348,7 @@ class TestCheckersGamestate(unittest.TestCase):
              [0,  0, -1,  0,  0,  0,  0,  0],
              [0, -1,  0, -1,  0, -2,  0,  0],
              [0,  0,  0,  0,  0,  0,  0,  0]])).all())
-        self.assertEqual(new_gamestate_2.turn, 1)
+        self.assertEqual(new_gamestate_2.turn, 0)
         self.assertEqual(new_gamestate_2.plys, 1)
         self.assertEqual(new_gamestate_2.turn_count, 1)
         self.assertEqual(new_gamestate_2.plys_since_cap, 0)
@@ -435,21 +366,21 @@ class TestCheckersGamestate(unittest.TestCase):
         self.gamestate_3.board[2][3] = 2
         self.assertIsNone(self.gamestate_3.winner)
         self.assertFalse(self.gamestate_3.is_game_over())
-        self.gamestate_3.turn = -1
-        self.assertFalse(self.gamestate_3.is_game_over())
-        self.assertIsNone(self.gamestate_3.winner)
-        self.gamestate_3.board[1][0] = 1
         self.gamestate_3.turn = 1
         self.assertFalse(self.gamestate_3.is_game_over())
         self.assertIsNone(self.gamestate_3.winner)
-        self.gamestate_3.turn = -1
+        self.gamestate_3.board[1][0] = 1
+        self.gamestate_3.turn = 0
+        self.assertFalse(self.gamestate_3.is_game_over())
+        self.assertIsNone(self.gamestate_3.winner)
+        self.gamestate_3.turn = 1
         self.assertTrue(self.gamestate_3.is_game_over())
-        self.assertEqual(self.gamestate_3.winner, 1)
+        self.assertEqual(self.gamestate_3.winner, 0)
 
         self.assertFalse(self.gamestate_2.is_game_over())
         self.gamestate_2.plys_since_cap = 80
         self.assertTrue(self.gamestate_2.is_game_over())
-        self.assertEqual(self.gamestate_2.winner, 0)
+        self.assertEqual(self.gamestate_2.winner, -1)
 
 
 class TestCheckersFunctional(unittest.TestCase):
@@ -468,11 +399,11 @@ class TestCheckersFunctional(unittest.TestCase):
                 gamestate = gamestate.get_next(move)
             finished += 1
             match gamestate.winner:
-                case 1:
-                    wins_1 += 1
-                case -1:
-                    wins_2 += 1
                 case 0:
+                    wins_1 += 1
+                case 1:
+                    wins_2 += 1
+                case -1:
                     draws += 1
         # Would likely indicate an error.
         self.assertFalse(wins_1 == max_count)

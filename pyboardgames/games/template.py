@@ -1,8 +1,8 @@
 """Abstract classes used as templates for creating custom games.
 
-At minimum, a new game must have the following classes and methods
-implemented for the provided agents to play the game. These gamestates
-and moves should subclass these classes.
+At minimum, a new game must have the following classes, methods, and
+attributes implemented for the provided agents to play the game. These
+gamestates and moves should subclass these classes.
 """
 
 
@@ -27,11 +27,10 @@ class GamestateTemplate(ABC):
         """
         pass
 
+    @property
     @abstractmethod
     def valid_moves(self):
         """Return a collection of all legal moves.
-
-        Should be implemented with the property decorator.
 
         Returns:
             A list of instances of the proper subclass of the
@@ -40,11 +39,10 @@ class GamestateTemplate(ABC):
         """
         pass
 
+    @property
     @abstractmethod
     def winner(self):
         """Determine which player won the game, if any.
-
-        Should be implemented with the property decorator.
 
         Returns:
             which player won.
@@ -58,6 +56,17 @@ class GamestateTemplate(ABC):
         Returns:
         True: game has ended.
         False: game has not ended.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def score(self):
+        """Score the current position heuristically.
+
+        Returns:
+            A score for the team player. A higher score indicates a
+            better position.
         """
         pass
 

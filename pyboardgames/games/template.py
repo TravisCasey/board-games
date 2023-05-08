@@ -65,8 +65,9 @@ class GamestateTemplate(ABC):
         """Score the current position heuristically.
 
         Returns:
-            A score for the team player. A higher score indicates a
-            better position.
+            A tuple indexed by the turn attributes. Entries are scores
+            for the player at the current position. Higher scores
+            indicate better positions. Works best with zero-sum system.
         """
         pass
 

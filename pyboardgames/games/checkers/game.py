@@ -168,7 +168,9 @@ class CheckersGamestate(GamestateTemplate):
     def score(self):
         """Score the current position.
 
-        Returns: A 9-digit integer. From left to right, these encode:
+        Returns: A tuple of 9-digit integers. The first entry is score
+            for red, the second for black. From left to right, the
+            scores encode:
             1-2: Measures piece count and value for each team.
                 +5 for turn player king, -5 for opponent king.
                 +3 for turn player man, -3 for opponent man.
@@ -188,51 +190,34 @@ class CheckersGamestate(GamestateTemplate):
                 edges and maximal towards the center.
         """
         if self._score is None:
-            self._score = 0
+            red_score = 0
             piece_count = 0
             for row in range(8):
                 for col in range(8):
                     match self.board[row][col]:
                         case 1:
-                            if self.turn == 0:
-                                self._score += 30000000
-                                self._score += row * 100000
-                            elif self.turn == 1:
-                                self._score -= 30000000
-                                self._score -= row * 100000
+                            red_score += 30000000
+                            red_score += row * 100000
                             piece_count += 1
                         case 2:
-                            if self.turn == 0:
-                                self._score += 50000000
-                                self._score += row * (7 - row)
-                                self._score += col * (7 - col)
-                            elif self.turn == 1:
-                                self._score -= 50000000
-                                self._score -= row * (7 - row)
-                                self._score -= col * (7 - col)
+                            red_score += 50000000
+                            red_score += row * (7 - row)
+                            red_score += col * (7 - col)
                             piece_count += 1
                         case -1:
-                            if self.turn == 1:
-                                self._score += 30000000
-                                self._score += (7 - row) * 100000
-                            elif self.turn == 0:
-                                self._score -= 30000000
-                                self._score -= (7 - row) * 100000
+                            red_score -= 30000000
+                            red_score -= (7 - row) * 100000
                             piece_count += 1
                         case -2:
-                            if self.turn == 1:
-                                self._score += 50000000
-                                self._score += row * (7 - row)
-                                self._score += col * (7 - col)
-                            elif self.turn == 0:
-                                self._score -= 50000000
-                                self._score -= row * (7 - row)
-                                self._score -= col * (7 - col)
+                            red_score -= 50000000
+                            red_score -= row * (7 - row)
+                            red_score -= col * (7 - col)
                             piece_count += 1
-            if self._score > 0:
-                self._score -= piece_count * 1000
-            elif self._score < 0:
-                self._score += piece_count * 1000
+            if red_score > 0:
+                red_score -= piece_count * 1000
+            elif red_score < 0:
+                red_score += piece_count * 1000
+            self._score = (red_score, -red_score)
         return self._score
 
     def jumps(self, square, piece):

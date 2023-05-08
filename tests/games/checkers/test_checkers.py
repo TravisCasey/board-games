@@ -134,22 +134,17 @@ class TestCheckersGamestate(unittest.TestCase):
         self.move_40 = game.CheckersMove(((0, 1), (1, 0)))
 
     def test_score(self):
-        self.assertEqual(self.gamestate_1.score, 0)
+        self.assertEqual(self.gamestate_1.score, (0, 0))
         self.gamestate_1.turn = 1
-        self.assertEqual(self.gamestate_1.score, 0)
+        self.assertEqual(self.gamestate_1.score, (0, 0))
 
-        self.assertTrue(self.gamestate_2.score > 0)
+        self.assertTrue(self.gamestate_2.score[0] > 0)
+        self.assertTrue(self.gamestate_2.score[1] < 0)
         score_red = self.gamestate_2.score
         self.gamestate_2.turn = 1
-        self.assertTrue(self.gamestate_2.score < 0)
-        self.assertEqual(self.gamestate_2.score, -score_red)
 
-        self.assertTrue(self.gamestate_3.score < 0)
-        score_red = self.gamestate_3.score
-        self.gamestate_3.turn = 1
-        self.assertTrue(self.gamestate_3.score > 0)
-        self.assertEqual(self.gamestate_3.score, -score_red)
-        self.assertEqual(self.gamestate_3.score, 50195002)
+        self.assertTrue(self.gamestate_3.score[0] < 0)
+        self.assertEqual(self.gamestate_3.score[1], 50195002)
 
     def test_jumps(self):
         self.assertEqual(self.gamestate_1.jumps((0, 1), 1), {})

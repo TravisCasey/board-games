@@ -40,10 +40,10 @@ class CheckersGUI():
         """Initialize pygame, the window, widgets, agents and the game.
 
         Keyword Args:
-            player1: The agent instance for the team 1. Default value is
-                None. If the input is None, the gui expects manual input
-                from the user.
-            player2: Same as player1, but for player 2.
+            player1: The agent instance for red. Default value is None.
+                If the input is None, the gui expects manual input from
+                the user.
+            player2: Same as player1, but for black.
             a_time: The number of milliseconds the gui spends animating
                 piece moves. A value of 0 disables animation.
             framerate: The number of frames per second.
@@ -213,17 +213,17 @@ class CheckersGUI():
 
         if self.gamestate.is_game_over():
             match self.gamestate.winner:
-                case 1:
-                    self.msg = 'Red wins!'
                 case 0:
-                    self.msg = 'Draw'
+                    self.msg = 'Red wins!'
                 case -1:
+                    self.msg = 'Draw'
+                case 1:
                     self.msg = 'Black wins!'
         else:
             match self.gamestate.turn:
-                case 1:
+                case 0:
                     self.msg = "Red's turn"
-                case -1:
+                case 1:
                     self.msg = "Black's turn"
 
     def click_handler(self, event):
@@ -236,8 +236,8 @@ class CheckersGUI():
             A boolean that is True if the user moved and False
                 otherwise.
         """
-        if ((self.gamestate.turn == 1 and self.player1 is None)
-                or (self.gamestate.turn == -1 and self.player2 is None)):
+        if ((self.gamestate.turn == 0 and self.player1 is None)
+                or (self.gamestate.turn == 1 and self.player2 is None)):
             row = event.pos[1] // self.SQ_PIX
             col = event.pos[0] // self.SQ_PIX
             valid = False
@@ -273,10 +273,10 @@ class CheckersGUI():
     def get_agent_move(self):
         """Source move from non-user agents."""
         if not self.gamestate.is_game_over():
-            if self.gamestate.turn == 1 and self.player1 is not None:
+            if self.gamestate.turn == 0 and self.player1 is not None:
                 move = self.player1.get_move(self.gamestate)
                 self.update(move)
-            elif self.gamestate.turn == -1 and self.player2 is not None:
+            elif self.gamestate.turn == 1 and self.player2 is not None:
                 move = self.player2.get_move(self.gamestate)
                 self.update(move)
 

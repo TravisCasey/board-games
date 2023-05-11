@@ -190,34 +190,41 @@ class CheckersGamestate(GamestateTemplate):
                 edges and maximal towards the center.
         """
         if self._score is None:
-            red_score = 0
-            piece_count = 0
-            for row in range(8):
-                for col in range(8):
-                    match self.board[row][col]:
-                        case 1:
-                            red_score += 30000000
-                            red_score += row * 100000
-                            piece_count += 1
-                        case 2:
-                            red_score += 50000000
-                            red_score += row * (7 - row)
-                            red_score += col * (7 - col)
-                            piece_count += 1
-                        case -1:
-                            red_score -= 30000000
-                            red_score -= (7 - row) * 100000
-                            piece_count += 1
-                        case -2:
-                            red_score -= 50000000
-                            red_score -= row * (7 - row)
-                            red_score -= col * (7 - col)
-                            piece_count += 1
-            if red_score > 0:
-                red_score -= piece_count * 1000
-            elif red_score < 0:
-                red_score += piece_count * 1000
-            self._score = (red_score, -red_score)
+            if self.winner == 0:
+                return (float('inf'), float('-inf'))
+            elif self.winner == 1:
+                return (float('-inf'), float('inf'))
+            elif self.winner == -1:
+                return (0, 0)
+            else:
+                red_score = 0
+                piece_count = 0
+                for row in range(8):
+                    for col in range(8):
+                        match self.board[row][col]:
+                            case 1:
+                                red_score += 30000000
+                                red_score += row * 100000
+                                piece_count += 1
+                            case 2:
+                                red_score += 50000000
+                                red_score += row * (7 - row)
+                                red_score += col * (7 - col)
+                                piece_count += 1
+                            case -1:
+                                red_score -= 30000000
+                                red_score -= (7 - row) * 100000
+                                piece_count += 1
+                            case -2:
+                                red_score -= 50000000
+                                red_score -= row * (7 - row)
+                                red_score -= col * (7 - col)
+                                piece_count += 1
+                if red_score > 0:
+                    red_score -= piece_count * 1000
+                elif red_score < 0:
+                    red_score += piece_count * 1000
+                self._score = (red_score, -red_score)
         return self._score
 
     def jumps(self, square, piece):

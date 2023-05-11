@@ -11,7 +11,7 @@ class AgentTemplate(ABC):
     """Defines the class structure for a custom gamestate."""
 
     @abstractmethod
-    def __init__(self, name, time=0.0):
+    def __init__(self, **kwargs):
         """Initialize the agent.
 
         Args:

@@ -7,10 +7,16 @@ import random
 class RandomAgent(AgentTemplate):
     """Agent chooses uniformly randomly from valid moves."""
 
-    def __init__(self, name='Random Agent', time=0.0):
-        """Initialize the agent's attributes."""
-        self.name = name
-        self.time = time
+    def __init__(self, **kwargs):
+        """Initialize the agent's attributes.
+
+        Args:
+            name: A keyword arg designating a name for the player.
+        """
+        if 'name' in kwargs:
+            self.name = kwargs['name']
+        else:
+            self.name = 'Random Player'
 
     def get_move(self, gamestate):
         """Choose randomly from all valid moves.

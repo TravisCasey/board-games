@@ -9,3 +9,4 @@ sys.path.insert(0, os.path.abspath(
 from pyboardgames.games.checkers import game
 from pyboardgames.games.checkers import gui
 from pyboardgames.agents.random import RandomAgent
+from pyboardgames.agents.minimax import IterativeDeepeningAgent

@@ -19,9 +19,8 @@ class AgentTemplate(ABC):
                 the gui.
             time: Agents should handle the keyword argument for time.
                 This is a float representing the time in seconds the
-                agent has to work before it must pick a move. The
-                default value is 0.0, which should indicate the agent
-                has no time limit.
+                agent has to work before it must pick a move. Time 0.0,
+                indicates the agent has no time limit.
         """
         pass
 

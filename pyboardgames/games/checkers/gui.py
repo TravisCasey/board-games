@@ -10,6 +10,40 @@ Classes:
 import pygame
 from pygame.locals import *
 from pyboardgames.games.checkers.game import CheckersGamestate
+import threading, time
+
+
+class CheckersLogic():
+
+    def __init__(self, player1=None, player2=None):
+        self.player1 = player1
+        self.player2 = player2
+        self.input_list = []
+        self.lock = threading.Lock()
+
+    def loop(self):
+        time.sleep(0.5)
+        while True:
+            time.sleep(0.01)
+
+            if len(self.input_list) > 0:
+                with self.lock:
+                    gamestate = self.input_list.pop(0)
+                if gamestate.is_game_over():
+                    break
+                if gamestate.turn == 0 and self.player1 is not None:
+                    move = self.player1.get_move(gamestate)
+                elif gamestate.turn == 1 and self.player2 is not None:
+                    move = self.player2.get_move(gamestate)
+                with self.lock:
+                    self.next_move = move
+
+    def start_loop(self):
+        threading.Thread(target=self.loop, daemon=True).start()
+
+
+
+
 
 
 class CheckersGUI():
@@ -74,6 +108,8 @@ class CheckersGUI():
         # Player attributes
         self.player1 = player1
         self.player2 = player2
+
+        self.logic = CheckersLogic(player1, player2)
 
         # Start game
         self.reset()
@@ -272,7 +308,7 @@ class CheckersGUI():
 
     def get_agent_move(self):
         """Source move from non-user agents."""
-        if not self.gamestate.is_game_over():
+        while not self.gamestate.is_game_over():
             if self.gamestate.turn == 0 and self.player1 is not None:
                 move = self.player1.get_move(self.gamestate)
                 self.update(move)
@@ -303,6 +339,7 @@ class CheckersGUI():
     def main_loop(self):
         """Run the graphical interface and detect user input."""
         run = True
+        self.logic.start_loop()
         while run:
             self.clock.tick(self.framerate)
             self.window.blit(self.background, (0, 0))
@@ -311,7 +348,7 @@ class CheckersGUI():
                 self.draw_overlays()
                 self.draw_gamestate(self.gamestate)
 
-                moved = False
+                #moved = False
                 for event in pygame.event.get():
                     if event.type == QUIT:
                         run = False
@@ -322,8 +359,11 @@ class CheckersGUI():
                             self.reset()
                         else:
                             moved = self.click_handler(event)
-                if not moved:
-                    self.get_agent_move()
+                #if not moved:
+                    #t = threading.Thread(target=self.get_agent_move,
+                    #                     daemon=True)
+                    #t.start()
+                    # self.get_agent_move()
 
             else:
                 self.draw_gamestate(self.a_gamestate)

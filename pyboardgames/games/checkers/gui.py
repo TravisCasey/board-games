@@ -70,6 +70,7 @@ class CheckersGUI():
             self.a_move = None
             self.a_gamestate = None
             self.a_piece = 0
+        self.wait = 300
 
         # Player attributes
         self.player1 = player1
@@ -82,6 +83,7 @@ class CheckersGUI():
 
     def reset(self):
         """Reset the game and window to the initial state."""
+        self.last_move_time = pygame.time.get_ticks()
         self.move_tracker = []
         self.gamestate = CheckersGamestate()
         self.msg = "Red's move"
@@ -226,6 +228,9 @@ class CheckersGUI():
                 case 1:
                     self.msg = "Black's turn"
 
+        if self.a_time == 0:
+            self.last_move_time = pygame.time.get_ticks()
+
     def click_handler(self, event):
         """Handle user input.
 
@@ -291,6 +296,7 @@ class CheckersGUI():
             delta = self.a_count % (2 * self.a_frames)
         if ind >= len(self.a_move) - 1:
             self.animating = False
+            self.last_move_time = pygame.time.get_ticks()
             self.draw_piece(self.a_piece,
                             self.get_center(*self.a_move[-1]))
         else:
@@ -322,7 +328,8 @@ class CheckersGUI():
                             self.reset()
                         else:
                             moved = self.click_handler(event)
-                if not moved:
+                elapsed = pygame.time.get_ticks() - self.last_move_time
+                if not moved and elapsed >= self.wait:
                     self.get_agent_move()
 
             else:

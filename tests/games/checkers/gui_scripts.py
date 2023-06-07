@@ -14,5 +14,7 @@ match sys.argv[1]:
     case '5': gui.CheckersGUI(player2=IterativeDeepeningAgent())
     case '6': gui.CheckersGUI(player1=RandomAgent(),
                               player2=IterativeDeepeningAgent())
-    case '7': gui.CheckersGUI(player1=IterativeDeepeningAgent(),
+    case '7': gui.CheckersGUI(player1=IterativeDeepeningAgent(time=3.0),
                               player2=RandomAgent())
+    case '8': gui.CheckersGUI(player1=IterativeDeepeningAgent(time=3.0),
+                              player2=IterativeDeepeningAgent(time=1.0))

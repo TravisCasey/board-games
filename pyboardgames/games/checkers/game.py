@@ -95,6 +95,11 @@ class CheckersGamestate(GamestateTemplate):
 
     PIECE_TEAMS = {1: 0, 2: 0, -1: 1, -2: 1}
 
+    players = 2
+    upper = 569988000.0
+    lower = -569988000.0
+    upper_sum = 0  # Zero sum game
+
     def __init__(self, board=None, turn=0, plys=0, plys_since_cap=0):
         """Initialize the beginning of a game of checkers.
 
@@ -168,9 +173,9 @@ class CheckersGamestate(GamestateTemplate):
     def score(self):
         """Score the current position.
 
-        Returns: A tuple of 9-digit integers. The first entry is score
+        Returns: A tuple of 9-digit floats. The first entry is score
             for red, the second for black. From left to right, the
-            scores encode:
+            digits of the score encode:
             1-2: Measures piece count and value for each team.
                 +5 for turn player king, -5 for opponent king.
                 +3 for turn player man, -3 for opponent man.
@@ -195,9 +200,9 @@ class CheckersGamestate(GamestateTemplate):
             elif self.winner == 1:
                 return (float('-inf'), float('inf'))
             elif self.winner == -1:
-                return (0, 0)
+                return (0.0, 0.0)
             else:
-                red_score = 0
+                red_score = 0.0
                 piece_count = 0
                 for row in range(8):
                     for col in range(8):

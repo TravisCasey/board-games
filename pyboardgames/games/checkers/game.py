@@ -54,6 +54,17 @@ class CheckersMove(MoveTemplate):
         """Length of move is number of squares involved."""
         return len(self._squares)
 
+    def _notation(self, square):
+        """Convert from coordinate notation to standard notation."""
+        return (32 - (8*square[0] + square[1]) // 2)
+
+    def __str__(self):
+        """Write the move as a string using the squares coordinates."""
+        move_string = str(self._notation(self._squares[0]))
+        for ind in range(1, len(self._squares)):
+            move_string += "-" + str(self._notation(self._squares[ind]))
+        return move_string
+
     @property
     def jumps(self):
         """Determine which squares are jumped, if any.

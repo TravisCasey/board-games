@@ -127,4 +127,13 @@ class GamestateTemplate(ABC):
 class MoveTemplate(ABC):
     """Defines the class structure for a custom move."""
 
-    pass
+    @abstractmethod
+    def __str__(self):
+        """Represent the move as a string.
+
+        Used when expressed as part of a variation.
+
+        Returns:
+            A string representing the move when written out.
+        """
+        pass

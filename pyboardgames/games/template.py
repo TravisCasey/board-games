@@ -51,11 +51,11 @@ class GamestateTemplate(ABC):
 
     @property
     @abstractmethod
-    def winner(self):
-        """Determine which player won the game, if any.
+    def turn(self):
+        """Return an integer corresponding to the turn player.
 
-        Returns:
-            which player won.
+        These integers should be indices of the score tuple. Thus the
+        first player is 0, the second is 1, and so on.
         """
         pass
 

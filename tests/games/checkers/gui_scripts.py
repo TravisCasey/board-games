@@ -3,7 +3,10 @@
 from context import (gui,
                      RandomAgent,
                      IterativeDeepeningAgent,
-                     ShallowPruningAgent)
+                     ShallowPruningAgent,
+                     IDDFSAgent,
+                     MaxnAgent,
+                     ParanoidAgent)
 import sys
 
 match sys.argv[1]:
@@ -14,14 +17,14 @@ match sys.argv[1]:
                               player2=RandomAgent())
     case '4': gui.CheckersGUI(player1=RandomAgent(),
                               a_time=0)
-    case '5': gui.CheckersGUI(player2=IterativeDeepeningAgent(time=10))
-    case '6': gui.CheckersGUI(player1=RandomAgent(),
-                              player2=IterativeDeepeningAgent())
-    case '7': gui.CheckersGUI(player1=IterativeDeepeningAgent(time=3.0),
-                              player2=RandomAgent())
-    case '8': gui.CheckersGUI(player1=IterativeDeepeningAgent(time=3.0),
-                              player2=IterativeDeepeningAgent(time=1.0))
-    case '9': gui.CheckersGUI(player1=ShallowPruningAgent(time=3.0),
-                              player2=RandomAgent())
-    case '10': gui.CheckersGUI(player1=ShallowPruningAgent(time=10),
-                               player2=IterativeDeepeningAgent(time=10))
+    case '11': gui.CheckersGUI(player1=IDDFSAgent(time=1.0),
+                               player2=MaxnAgent(time=1.0))
+    case '12': gui.CheckersGUI(player1=MaxnAgent(time=5.0, prune_enable=False),
+                               player2=MaxnAgent(time=5.0))
+    case '13': gui.CheckersGUI(player1=MaxnAgent(time=2.0, verbose=1),
+                               player2=ParanoidAgent(time=2.0,
+                                                     prune_enable=False,
+                                                     verbose=1))
+    case '14': gui.CheckersGUI(player1=ParanoidAgent(time=0.02,
+                                                     verbose=1),
+                               player2=ParanoidAgent(time=0.2, verbose=1))

@@ -121,7 +121,7 @@ class CheckersGamestate(GamestateTemplate):
     lower = -569988000.0
     upper_sum = 0  # Zero sum game
 
-    hash_length = 16
+    hash_length = 32
 
     def __init__(self,
                  board=None,

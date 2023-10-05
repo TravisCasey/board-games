@@ -2,8 +2,6 @@
 
 from context import (gui,
                      RandomAgent,
-                     IterativeDeepeningAgent,
-                     ShallowPruningAgent,
                      IDDFSAgent,
                      MaxnAgent,
                      ParanoidAgent)
@@ -21,10 +19,17 @@ match sys.argv[1]:
                                player2=MaxnAgent(time=1.0))
     case '12': gui.CheckersGUI(player1=MaxnAgent(time=5.0, prune_enable=False),
                                player2=MaxnAgent(time=5.0))
-    case '13': gui.CheckersGUI(player1=MaxnAgent(time=2.0, verbose=1),
-                               player2=ParanoidAgent(time=2.0,
-                                                     prune_enable=False,
+    case '13': gui.CheckersGUI(player1=MaxnAgent(time=5,
+                                                 verbose=1),
+                               player2=ParanoidAgent(time=5,
                                                      verbose=1))
     case '14': gui.CheckersGUI(player1=ParanoidAgent(time=0.02,
                                                      verbose=1),
                                player2=ParanoidAgent(time=0.2, verbose=1))
+    case '15': gui.CheckersGUI(player1=ParanoidAgent(time=5, verbose=5),
+                               player2=ParanoidAgent(time=5, verbose=5,
+                                                     t_enable=False))
+    case '16': gui.CheckersGUI(player1=ParanoidAgent(time=5, verbose=5),
+                               player2=ParanoidAgent(time=5, verbose=5,
+                                                     prune_enable=False,
+                                                     t_enable=False))

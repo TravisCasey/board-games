@@ -123,6 +123,13 @@ class GamestateTemplate(ABC):
         """
         pass
 
+    # Suggested attribute: hash_value. This is a primitive or immutable
+    # object that the minimax transposition table uses. To be effective,
+    # the values should agree for equal gamestates, though they may also
+    # agree on different gamestates in order to simplify hashing and
+    # save memory. Can be set uniformly or left blank to disable
+    # transposition table usage.
+
 
 class MoveTemplate(ABC):
     """Defines the class structure for a custom move."""

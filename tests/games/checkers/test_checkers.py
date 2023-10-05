@@ -377,6 +377,40 @@ class TestCheckersGamestate(unittest.TestCase):
         self.assertTrue(self.gamestate_2.is_game_over())
         self.assertEqual(self.gamestate_2.winner, -1)
 
+    def test_hash(self):
+        # Hash values should be an integer between 0 and 2^n - 1 where n
+        # is the hash_length.
+        hash_value = self.gamestate_2.hash_value
+        high = 2 ** self.gamestate_2.hash_length
+        self.assertTrue(hash_value >= 0)
+        self.assertTrue(hash_value < high)
+        hash_value = self.gamestate_1.hash_value
+        high = 2 ** self.gamestate_1.hash_length
+        self.assertTrue(hash_value >= 0)
+        self.assertTrue(hash_value < high)
+
+        # Transpositions should have equal hash values. Hash values
+        # obtained through move calculations should match board hash
+        # values.
+        rep_move1 = game.CheckersMove(((2, 5), (1, 6)))
+        rep_move2 = game.CheckersMove(((1, 6), (2, 5)))
+        rep_move3 = game.CheckersMove(((2, 3), (1, 2)))
+        rep_move4 = game.CheckersMove(((1, 2), (2, 3)))
+        new_gamestate_1 = self.gamestate_3.get_next(rep_move1)
+        new_gamestate_1 = new_gamestate_1.get_next(self.move_39)
+        new_gamestate_2 = new_gamestate_1.get_next(rep_move2)
+        new_gamestate_2 = new_gamestate_2.get_next(rep_move3)
+        new_gamestate_2 = new_gamestate_2.get_next(rep_move1)
+        new_gamestate_2 = new_gamestate_2.get_next(rep_move4)
+        self.assertEqual(new_gamestate_1.hash_value,
+                         new_gamestate_2.hash_value)
+        hash_1 = new_gamestate_1.hash_value
+        hash_2 = new_gamestate_2.hash_value
+        new_gamestate_1.hash_board()
+        new_gamestate_2.hash_board()
+        self.assertEqual(hash_1, new_gamestate_1.hash_value)
+        self.assertEqual(hash_2, new_gamestate_2.hash_value)
+
 
 class TestCheckersFunctional(unittest.TestCase):
 

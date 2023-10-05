@@ -5,6 +5,7 @@ https://en.wikipedia.org/wiki/English_draughts.
 """
 
 import numpy as np
+import random
 from pyboardgames.games.template import GamestateTemplate, MoveTemplate
 
 
@@ -106,12 +107,29 @@ class CheckersGamestate(GamestateTemplate):
 
     PIECE_TEAMS = {1: 0, 2: 0, -1: 1, -2: 1}
 
+    COMPACT = {(0, 1): 0, (0, 3): 1, (0, 5): 2, (0, 7): 3,
+               (1, 0): 4, (1, 2): 5, (1, 4): 6, (1, 6): 7,
+               (2, 1): 8, (2, 3): 9, (2, 5): 10, (2, 7): 11,
+               (3, 0): 12, (3, 2): 13, (3, 4): 14, (3, 6): 15,
+               (4, 1): 16, (4, 3): 17, (4, 5): 18, (4, 7): 19,
+               (5, 0): 20, (5, 2): 21, (5, 4): 22, (5, 6): 23,
+               (6, 1): 24, (6, 3): 25, (6, 5): 26, (6, 7): 27,
+               (7, 0): 28, (7, 2): 29, (7, 4): 30, (7, 6): 31}
+
     players = 2
     upper = 569988000.0
     lower = -569988000.0
     upper_sum = 0  # Zero sum game
 
-    def __init__(self, board=None, turn=0, plys=0, plys_since_cap=0):
+    hash_length = 16
+
+    def __init__(self,
+                 board=None,
+                 turn=0,
+                 plys=0,
+                 plys_since_cap=0,
+                 hash_value=None,
+                 hash_key=None):
         """Initialize the beginning of a game of checkers.
 
         Args:
@@ -145,6 +163,17 @@ class CheckersGamestate(GamestateTemplate):
         self._score = None
         self.plys = plys
         self.plys_since_cap = plys_since_cap
+
+        if hash_key is None:
+            self.hash_key = [{piece: random.getrandbits(self.hash_length)
+                              for piece in (-2, -1, 1, 2)}
+                             for _ in range(32)]
+        else:
+            self.hash_key = hash_key
+        if hash_value is None:
+            self.hash_board()
+        else:
+            self.hash_value = hash_value
 
     @property
     def turn(self):
@@ -353,8 +382,11 @@ class CheckersGamestate(GamestateTemplate):
         next_state = CheckersGamestate(board=np.copy(self.board),
                                        turn=-self.turn+1,
                                        plys=self.plys+1,
-                                       plys_since_cap=self.plys_since_cap+1)
+                                       plys_since_cap=self.plys_since_cap+1,
+                                       hash_value=self.hash_value,
+                                       hash_key=self.hash_key)
 
+        next_state.hash_update(move[0])
         piece = next_state.board[move[0]]
         next_state.board[move[0]] = 0
 
@@ -362,6 +394,7 @@ class CheckersGamestate(GamestateTemplate):
         if move.jumps:
             next_state.plys_since_cap = 0
             for square in move.jumps:
+                next_state.hash_update(square)
                 next_state.board[square] = 0
 
         # Check if piece becomes a king.
@@ -371,6 +404,7 @@ class CheckersGamestate(GamestateTemplate):
             next_state.board[move[-1]] = -2
         else:
             next_state.board[move[-1]] = piece
+        next_state.hash_update(move[-1])
 
         return next_state
 
@@ -394,3 +428,22 @@ class CheckersGamestate(GamestateTemplate):
     def is_game_over(self):
         """Determine if there is a winner of the game."""
         return self.winner is not None
+
+    def hash_board(self):
+        """Calculate hash value of current board state."""
+        self.hash_value = 0
+        for square in self.COMPACT.keys():
+            self.hash_update(square)
+
+    def hash_update(self, square):
+        """Update hash value with piece at given square.
+
+        Should be called before a piece is removed from the square or
+        after a piece is added to the square.
+
+        Args:
+            square: A tuple indicating a square of the board.
+        """
+        piece = self.board[square]
+        if piece != 0:
+            self.hash_value ^= self.hash_key[self.COMPACT[square]][piece]

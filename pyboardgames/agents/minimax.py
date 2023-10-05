@@ -5,6 +5,8 @@ import random
 from collections import OrderedDict
 from pyboardgames.agents.template import AgentTemplate
 
+# TODO: add reset for new game.
+
 
 class IDDFSAgent(AgentTemplate):
     """A DFS agent that uses iterative deepening to find the best move.
@@ -58,6 +60,10 @@ class IDDFSAgent(AgentTemplate):
         self.t_cap = t_cap
         self._verbose = verbose
 
+        self.reset()
+
+    def reset(self):
+        """Reset attributes to default values."""
         # Attributes for traversing the game tree.
         self._time_ini = None
         self._time_last = None

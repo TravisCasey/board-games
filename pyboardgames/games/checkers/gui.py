@@ -86,6 +86,10 @@ class CheckersGUI():
         self.last_move_time = pygame.time.get_ticks()
         self.move_tracker = []
         self.gamestate = CheckersGamestate()
+        if self.player1 is not None:
+            self.player1.reset()
+        if self.player2 is not None:
+            self.player2.reset()
         self.msg = "Red's move"
 
     def draw_background(self):

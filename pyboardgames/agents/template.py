@@ -36,3 +36,8 @@ class AgentTemplate(ABC):
             An object representing the chosen move.
         """
         pass
+
+    @abstractmethod
+    def reset(self):
+        """Reset the agent to its initial state for a new game."""
+        pass

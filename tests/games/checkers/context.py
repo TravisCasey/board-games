@@ -12,3 +12,4 @@ from pyboardgames.agents.random import RandomAgent
 from pyboardgames.agents.minimax import (IDDFSAgent,
                                          MaxnAgent,
                                          ParanoidAgent)
+from pyboardgames.agents.montecarlo import MCTSAgent

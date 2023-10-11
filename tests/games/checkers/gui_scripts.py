@@ -4,7 +4,8 @@ from context import (gui,
                      RandomAgent,
                      IDDFSAgent,
                      MaxnAgent,
-                     ParanoidAgent)
+                     ParanoidAgent,
+                     MCTSAgent)
 import sys
 
 match sys.argv[1]:
@@ -33,3 +34,10 @@ match sys.argv[1]:
                                player2=ParanoidAgent(time=5, verbose=5,
                                                      prune_enable=False,
                                                      t_enable=False))
+    case '17': gui.CheckersGUI(player2=MCTSAgent(time=1),
+                               player1=RandomAgent())
+    case '18': gui.CheckersGUI(player1=MCTSAgent(time=5, ucb_param=0.5),
+                               player2=ParanoidAgent(time=5))
+    case '19': gui.CheckersGUI(player1=MCTSAgent(time=1.0, verbose=2),
+                               player2=MaxnAgent(time=1.0,
+                                                 prune_enable=False))

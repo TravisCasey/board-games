@@ -18,6 +18,10 @@ class RandomAgent(AgentTemplate):
         else:
             self.name = 'Random Player'
 
+    def reset(self):
+        """Fulfills agent template requirement."""
+        pass
+
     def get_move(self, gamestate):
         """Choose randomly from all valid moves.
 

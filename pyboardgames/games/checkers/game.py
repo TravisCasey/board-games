@@ -429,6 +429,18 @@ class CheckersGamestate(GamestateTemplate):
         """Determine if there is a winner of the game."""
         return self.winner is not None
 
+    @property
+    def reward(self):
+        """Return a tuple of reward based on outcome of the game."""
+        if self.winner == 0:
+            return (1.0, 0.0)
+        elif self.winner == 1:
+            return (0.0, 1.0)
+        elif self.winner == -1:
+            return (0.5, 0.5)
+        else:
+            raise ValueError
+
     def hash_board(self):
         """Calculate hash value of current board state."""
         self.hash_value = 0

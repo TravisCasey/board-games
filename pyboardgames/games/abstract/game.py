@@ -92,6 +92,7 @@ class Tree(GamestateTemplate):
         self._lower = lower
         self._upper_sum = upper_sum
         self._turn = turn
+        self._reward = None
 
     @property
     def players(self):
@@ -156,6 +157,31 @@ class Tree(GamestateTemplate):
     def is_game_over(self):
         """Return True if the game is over and False otherwise."""
         return (len(self.tree) == 1)
+
+    @property
+    def reward(self):
+        """Reward players based on score in the terminal node.
+
+        Winner takes all method or 1.0 reward is evenly split among
+        those tying for first.
+        """
+        if self._reward is not None:
+            return self._reward
+
+        reward_tup = (0,) * self.players
+        best_score = float('-inf')
+        best_players = []
+        for player in range(self.players):
+            if self.tree[0][player] > best_score:
+                best_score = self.tree[0][player]
+                best_players = [player]
+            elif self.tree[0][player] == best_score:
+                best_players.append(player)
+
+        split_reward = 1.0 / len(best_players)
+        for player in best_players:
+            reward_tup[player] = split_reward
+        return reward_tup
 
     @property
     def score(self):

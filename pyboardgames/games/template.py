@@ -123,6 +123,21 @@ class GamestateTemplate(ABC):
         """
         pass
 
+    @property
+    @abstractmethod
+    def reward(self):
+        """Reward players based on final result.
+
+        Used by the monte carlo agents. Only called when the game is
+        over per the is_game_over method.
+
+        Returns:
+            A tuple of nonnegative floats summing to 1 indexed by
+            the players. Higher rewards indicate a better outcome for
+            the player at that index.
+        """
+        pass
+
     # Suggested attribute: hash_value. This is a primitive or immutable
     # object that the minimax transposition table uses. To be effective,
     # the values should agree for equal gamestates, though they may also

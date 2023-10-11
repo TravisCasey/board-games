@@ -36,8 +36,13 @@ match sys.argv[1]:
                                                      t_enable=False))
     case '17': gui.CheckersGUI(player2=MCTSAgent(time=1),
                                player1=RandomAgent())
-    case '18': gui.CheckersGUI(player1=MCTSAgent(time=5, ucb_param=0.5),
-                               player2=ParanoidAgent(time=5))
-    case '19': gui.CheckersGUI(player1=MCTSAgent(time=1.0, verbose=2),
+    case '18': gui.CheckersGUI(player2=MCTSAgent(time=5, verbose=2,
+                                                 ucb_param=2.45),
+                               player1=ParanoidAgent(time=5))
+    case '19': gui.CheckersGUI(player1=MCTSAgent(time=1.0,
+                                                 verbose=2,
+                                                 ucb_param=2.45),
                                player2=MaxnAgent(time=1.0,
+                                                 verbose=1,
+                                                 t_enable=False,
                                                  prune_enable=False))

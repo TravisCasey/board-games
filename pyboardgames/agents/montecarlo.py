@@ -159,7 +159,10 @@ class MCTSAgent(AgentTemplate):
         """
         best_ucb = float('-inf')
         for child in node.children:
-            exploit = child.rewards / child.visits
+            if node.gamestate.turn == self._turn:
+                exploit = child.rewards / child.visits
+            else:
+                exploit = 1 - (child.rewards / child.visits)
             explore = math.sqrt(math.log(node.visits) / child.visits)
             ucb = exploit + self._ucb_param * explore
             if ucb > best_ucb:

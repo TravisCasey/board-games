@@ -132,9 +132,9 @@ class GamestateTemplate(ABC):
         over per the is_game_over method.
 
         Returns:
-            A tuple of nonnegative floats summing to 1 indexed by
-            the players. Higher rewards indicate a better outcome for
-            the player at that index.
+            A tuple of nonnegative floats indexed by the players.
+            Higher rewards indicate a better outcome for the player at
+            that index.
         """
         pass
 

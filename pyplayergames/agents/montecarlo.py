@@ -3,7 +3,7 @@
 import time
 import random
 import math
-from pyboardgames.agents.template import AgentTemplate
+from pyplayergames.agents.template import AgentTemplate
 
 
 class Node():

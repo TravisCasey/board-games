@@ -19,7 +19,7 @@ Red
 
 import numpy as np
 import random
-from pyboardgames.games.template import GamestateTemplate, MoveTemplate
+from pyplayergames.games.template import GamestateTemplate, MoveTemplate
 
 
 class CheckersMove(MoveTemplate):

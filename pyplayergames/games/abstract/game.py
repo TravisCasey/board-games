@@ -3,7 +3,7 @@
 Defines a custom game tree for testing purposes.
 """
 
-from pyboardgames.games.template import GamestateTemplate, MoveTemplate
+from pyplayergames.games.template import GamestateTemplate, MoveTemplate
 
 
 class Edge(MoveTemplate):

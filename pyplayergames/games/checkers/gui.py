@@ -9,7 +9,7 @@ Classes:
 
 import pygame
 from pygame.locals import *
-from pyboardgames.games.checkers.game import CheckersGamestate
+from pyplayergames.games.checkers.game import CheckersGamestate
 
 
 class CheckersGUI():

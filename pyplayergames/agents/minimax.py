@@ -3,7 +3,7 @@
 import time
 import random
 from collections import OrderedDict
-from pyboardgames.agents.template import AgentTemplate
+from pyplayergames.agents.template import AgentTemplate
 
 # TODO: add reset for new game.
 

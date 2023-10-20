@@ -1,6 +1,6 @@
 """A simple agent that selects move uniformly randomly."""
 
-from pyboardgames.agents.template import AgentTemplate
+from pyplayergames.agents.template import AgentTemplate
 import random
 
 

@@ -6,7 +6,5 @@ import os
 sys.path.insert(0, os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..\\..\\..')))
 
-from pyboardgames.games.abstract import game
-from pyboardgames.agents.random import RandomAgent
-# from pyboardgames.agents.minimax import (IterativeDeepeningAgent,
-#                                         ShallowPruningAgent)
+from pyplayergames.games.abstract import game
+from pyplayergames.agents.random import RandomAgent

@@ -185,4 +185,3 @@ class TestTree(unittest.TestCase):
         self.assertEqual(new_tree_4.score, (2.4, -2.4))
         self.assertEqual(new_tree_5.score, (-8.0, 8.0))
         self.assertEqual(new_tree_6.score, (-5.0, 5.0))
-

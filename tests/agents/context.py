@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..\\..')))
 
-from pyboardgames.games.abstract import game
-from pyboardgames.agents.minimax import (IDDFSAgent,
-                                         MaxnAgent,
-                                         ParanoidAgent)
+from pyplayergames.games.abstract import game
+from pyplayergames.agents.minimax import (IDDFSAgent,
+                                          MaxnAgent,
+                                          ParanoidAgent)

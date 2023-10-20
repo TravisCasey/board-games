@@ -16,15 +16,6 @@ class TestCheckersMove(unittest.TestCase):
         self.move_4 = game.CheckersMove(((2, 3), (0, 1)))
         self.move_5 = game.CheckersMove(((2, 3), (0, 5)))
 
-    def test_init(self):
-        with self.assertRaises(TypeError):
-            game.CheckersMove(8)
-            game.CheckersMove(True)
-            game.CheckersMove((2, 4))
-        with self.assertRaises(ValueError):
-            game.CheckersMove(((2, 4), (7, 3, 1)))
-            game.CheckersMove((2, 4), (8, -1))
-
     def test_length(self):
         self.assertEqual(len(self.move_1), 4)
         self.assertEqual(len(self.move_2), 2)

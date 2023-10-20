@@ -40,10 +40,10 @@ class CheckersGUI():
         """Initialize pygame, the window, widgets, agents and the game.
 
         Keyword Args:
-            player1: The agent instance for red. Default value is None.
+            player1: The agent instance for black. Default value is None.
                 If the input is None, the gui expects manual input from
                 the user.
-            player2: Same as player1, but for black.
+            player2: Same as player1, but for red.
             a_time: The number of milliseconds the gui spends animating
                 piece moves. A value of 0 disables animation.
             framerate: The number of frames per second.
@@ -90,7 +90,7 @@ class CheckersGUI():
             self.player1.reset()
         if self.player2 is not None:
             self.player2.reset()
-        self.msg = "Red's move"
+        self.msg = "Black's move"
 
     def draw_background(self):
         """Draw the board on the background surface."""
@@ -110,17 +110,17 @@ class CheckersGUI():
         match piece:
             case 1:
                 pygame.draw.circle(self.window,
-                                   self.RED,
+                                   self.BLACK,
                                    center,
                                    self.SQ_PIX // 2)
             case -1:
                 pygame.draw.circle(self.window,
-                                   self.BLACK,
+                                   self.RED,
                                    center,
                                    self.SQ_PIX // 2)
             case 2:
                 pygame.draw.circle(self.window,
-                                   self.RED,
+                                   self.BLACK,
                                    center,
                                    self.SQ_PIX // 2)
                 pygame.draw.circle(self.window,
@@ -129,7 +129,7 @@ class CheckersGUI():
                                    self.SQ_PIX // 4)
             case -2:
                 pygame.draw.circle(self.window,
-                                   self.BLACK,
+                                   self.RED,
                                    center,
                                    self.SQ_PIX // 2)
                 pygame.draw.circle(self.window,
@@ -220,17 +220,17 @@ class CheckersGUI():
         if self.gamestate.is_game_over():
             match self.gamestate.winner:
                 case 0:
-                    self.msg = 'Red wins!'
+                    self.msg = 'Black wins!'
                 case -1:
                     self.msg = 'Draw'
                 case 1:
-                    self.msg = 'Black wins!'
+                    self.msg = 'Red wins!'
         else:
             match self.gamestate.turn:
                 case 0:
-                    self.msg = "Red's turn"
-                case 1:
                     self.msg = "Black's turn"
+                case 1:
+                    self.msg = "Red's turn"
 
         if self.a_time == 0:
             self.last_move_time = pygame.time.get_ticks()

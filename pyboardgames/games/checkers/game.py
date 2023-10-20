@@ -2,6 +2,19 @@
 
 The version of checkers implemented is English draughts:
 https://en.wikipedia.org/wiki/English_draughts.
+
+Checkers notation:
+
+Black (first move)
+|  | 1|  | 2|  | 3|  | 4|
+| 5|  | 6|  | 7|  | 8|  |
+|  | 9|  |10|  |11|  |12|
+|13|  |14|  |15|  |16|  |
+|  |17|  |18|  |19|  |20|
+|21|  |22|  |23|  |24|  |
+|  |25|  |26|  |27|  |28|
+|29|  |30|  |31|  |32|  |
+Red
 """
 
 import numpy as np
@@ -24,25 +37,7 @@ class CheckersMove(MoveTemplate):
         Args:
             squares: A tuple of coordinates, each cooresponding to a
                 square on the checkers board.
-
-        Raises:
-            TypeError: If the squares input is not a tuple of tuples.
-            ValueError: If the coordinate tuples are not of length two,
-                or if their values exceed that of the sizes of the
-                board; they should be 0 to 7.
         """
-        if type(squares) is not tuple:
-            raise TypeError('Expected squares input as a tuple.')
-        if len(squares) < 2:
-            raise ValueError('Requires at least two squares.')
-        for square in squares:
-            if type(square) is not tuple:
-                raise TypeError('Board coordinates should be a tuple.')
-            if len(square) != 2:
-                raise ValueError('Squares should be a tuple of length two.')
-            if square[0] not in range(8) or square[1] not in range(8):
-                raise ValueError('Rows and columns should be in 0 to 7.')
-
         self._squares = squares
         self._jumps = []
         self._dirs = []
@@ -55,15 +50,15 @@ class CheckersMove(MoveTemplate):
         """Length of move is number of squares involved."""
         return len(self._squares)
 
-    def _notation(self, square):
-        """Convert from coordinate notation to standard notation."""
-        return (32 - (8*square[0] + square[1]) // 2)
+    def _notation(self, key):
+        """Output selected square in standard notation."""
+        return (1 + (8*self._squares[key][0] + self._squares[key][1]) // 2)
 
     def __str__(self):
         """Write the move as a string using the squares coordinates."""
-        move_string = str(self._notation(self._squares[0]))
+        move_string = str(self._notation(0))
         for ind in range(1, len(self._squares)):
-            move_string += "-" + str(self._notation(self._squares[ind]))
+            move_string += "-" + str(self._notation(ind))
         return move_string
 
     @property
@@ -136,7 +131,7 @@ class CheckersGamestate(GamestateTemplate):
             board: An 8x8 numpy array representing the game board. If no
                 argument or None is passed, the board is initialized to
                 the starting board.
-            turn: An integer 0 or 1 noting if its red or black turn,
+            turn: An integer 0 or 1 noting if its black or red turn,
                 respectively. Default value 0.
             plys: An integer tracking the number of plys (half-turns)
                 taken in this game.
@@ -180,8 +175,8 @@ class CheckersGamestate(GamestateTemplate):
         """Get turn attribute.
 
         Returns:
-            0: Red's turn
-            1: Black's turn
+            0: Black's turn
+            1: Red's turn
         """
         return self._turn
 
@@ -214,7 +209,7 @@ class CheckersGamestate(GamestateTemplate):
         """Score the current position.
 
         Returns: A tuple of 9-digit floats. The first entry is score
-            for red, the second for black. From left to right, the
+            for black, the second for red. From left to right, the
             digits of the score encode:
             1-2: Measures piece count and value for each team.
                 +5 for turn player king, -5 for opponent king.
@@ -242,34 +237,34 @@ class CheckersGamestate(GamestateTemplate):
             elif self.winner == -1:
                 return (0.0, 0.0)
             else:
-                red_score = 0.0
+                black_score = 0.0
                 piece_count = 0
                 for row in range(8):
                     for col in range(8):
                         match self.board[row][col]:
                             case 1:
-                                red_score += 30000000
-                                red_score += row * 100000
+                                black_score += 30000000
+                                black_score += row * 100000
                                 piece_count += 1
                             case 2:
-                                red_score += 50000000
-                                red_score += row * (7 - row)
-                                red_score += col * (7 - col)
+                                black_score += 50000000
+                                black_score += row * (7 - row)
+                                black_score += col * (7 - col)
                                 piece_count += 1
                             case -1:
-                                red_score -= 30000000
-                                red_score -= (7 - row) * 100000
+                                black_score -= 30000000
+                                black_score -= (7 - row) * 100000
                                 piece_count += 1
                             case -2:
-                                red_score -= 50000000
-                                red_score -= row * (7 - row)
-                                red_score -= col * (7 - col)
+                                black_score -= 50000000
+                                black_score -= row * (7 - row)
+                                black_score -= col * (7 - col)
                                 piece_count += 1
-                if red_score > 0:
-                    red_score -= piece_count * 1000
-                elif red_score < 0:
-                    red_score += piece_count * 1000
-                self._score = (red_score, -red_score)
+                if black_score > 0:
+                    black_score -= piece_count * 1000
+                elif black_score < 0:
+                    black_score += piece_count * 1000
+                self._score = (black_score, -black_score)
         return self._score
 
     def jumps(self, square, piece):
@@ -413,8 +408,8 @@ class CheckersGamestate(GamestateTemplate):
         """Determine the winner of the game, if any.
 
         Returns:
-            0: Red wins
-            1: Black wins
+            0: Black wins
+            1: Red wins
             -1: Draw (40 turn since last capture.)
             None: Game is not over yet - no winner.
         """

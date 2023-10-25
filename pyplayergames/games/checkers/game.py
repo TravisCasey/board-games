@@ -1,145 +1,166 @@
-"""Gamestate and move class for the game of checkers.
+"""
+Checkers game classes.
+=====================
 
-The version of checkers implemented is English draughts:
-https://en.wikipedia.org/wiki/English_draughts.
+This module contains the move class and gamestate class for the game of
+checkers The version of checkers implemented is American Checkers, as
+maintained by the American Checkers Federation.
 
-Checkers notation:
+Checkers notation and orientation:
 
-Black (first move)
-|  | 1|  | 2|  | 3|  | 4|
-| 5|  | 6|  | 7|  | 8|  |
-|  | 9|  |10|  |11|  |12|
-|13|  |14|  |15|  |16|  |
-|  |17|  |18|  |19|  |20|
-|21|  |22|  |23|  |24|  |
-|  |25|  |26|  |27|  |28|
-|29|  |30|  |31|  |32|  |
-Red
+::
+
+    Black (first move)
+
+        0  1  2  3  4  5  6  7
+
+    0  |  | 1|  | 2|  | 3|  | 4|
+    1  | 5|  | 6|  | 7|  | 8|  |
+    2  |  | 9|  |10|  |11|  |12|
+    3  |13|  |14|  |15|  |16|  |
+    4  |  |17|  |18|  |19|  |20|
+    5  |21|  |22|  |23|  |24|  |
+    6  |  |25|  |26|  |27|  |28|
+    7  |29|  |30|  |31|  |32|  |
+
+    Red
 """
 
-import numpy as np
 import random
-from pyplayergames.games.template import GamestateTemplate, MoveTemplate
+import numpy as np
+import pyplayergames as ppg
 
 
-class CheckersMove(MoveTemplate):
-    """Wrapper for a checkers move.
+def coord_conv(square):
+    """
+    Convert between board coordinates and standard checkers notation.
+    """
+    return (8 * square[0] + square[1])//2 + 1
 
-    Moves are fed in as a tuple of tuples. Each inner tuple are
-    coordinates corresponding to a square on the board; the first
-    coordinate pair is the position of the piece to move, while later
-    coordinate pairs are positions moved to.
+
+class Move(ppg.MoveTemplate):
+    """
+    Checkers move class.
+
+    Moves are encoded as a start tuple and a direction tuple.
+
+    Parameters
+    ----------
+    start : tuple of int
+        Tuple (row, column) indicating the square on the board the move
+        starts from
+    d : tuple of int
+        Tuple (row dir, column dir) indicates the direction of the move.
+        Entries are 1 or -1 to indicate if row/column will increase or
+        decrease.
+
+    Notes
+    -----
+    Each instance is not necessarily a complete turn; with multiple
+    jumps, multiple Move instances are required to represent the turn.
+
+    While this class does not store whether a move is a simple move,
+    single jump, or multiple jump, there is no ambiguity when paired
+    with a checkers Gamestate instance.
+
+    A given Move instance is not necesarily valid; validity of a move
+    makes sense only when paired with a checkers Gamestate instance.
     """
 
-    def __init__(self, squares):
-        """Initialize move wrapper.
-
-        Args:
-            squares: A tuple of coordinates, each cooresponding to a
-                square on the checkers board.
-        """
-        self._squares = squares
-        self._jumps = []
-        self._dirs = []
-
-    def __getitem__(self, key):
-        """Allow direct access to squares tuple."""
-        return self._squares[key]
-
-    def __len__(self):
-        """Length of move is number of squares involved."""
-        return len(self._squares)
-
-    def _notation(self, key):
-        """Output selected square in standard notation."""
-        return (1 + (8*self._squares[key][0] + self._squares[key][1]) // 2)
+    def __init__(self, start, d):
+        self.start = start
+        self.d = d
 
     def __str__(self):
-        """Write the move as a string using the squares coordinates."""
-        move_string = str(self._notation(0))
-        for ind in range(1, len(self._squares)):
-            move_string += "-" + str(self._notation(ind))
-        return move_string
-
-    @property
-    def jumps(self):
-        """Determine which squares are jumped, if any.
-
-        May have unexpected results on invalid moves.
         """
-        if not self._jumps:
-            for start, end in zip(self._squares, self._squares[1:]):
-                diff = (end[0] - start[0], end[1] - start[1])
-                if diff[0] in (-2, 2) and diff[1] in (-2, 2):
-                    self._jumps.append((start[0] + diff[0] // 2,
-                                        start[1] + diff[1] // 2))
-        return self._jumps
+        Express the move in a readable format.
 
-    @property
-    def dirs(self):
-        """Determine directions of moves."""
-        if not self._dirs:
-            for start, end in zip(self._squares, self._squares[1:]):
-                diff = (end[0] - start[0], end[1] - start[1])
-                self._dirs.append((1 if diff[0] > 0 else -1,
-                                   1 if diff[1] > 0 else -1))
-        return self._dirs
+        Returns
+        -------
+        str
+            Standard checkers notation for the start square and
+            the square in the direction of d separated by a dash. As the
+            move may be a jump, the second number may be the square of
+            the piece captured rather than where the piece lands.
+        """
+        end = (self.start[0] + self.d[0], self.start[1] + self.d[1])
+        return (str(ppg.checkers.coord_conv(self.start))
+                + '-' + str(ppg.checkers.coord_conv(end)))
 
 
-class CheckersGamestate(GamestateTemplate):
-    """Instances represent the current state of a game of checkers.
+class Gamestate(ppg.GamestateTemplate):
+    """
+    Checkers Gamestate class.
 
-    Contains all methods and properties to describe, set, and update
-    the checkers gamestate.
+    Parameters
+    ----------
+    board: NumPy array or NoneType, optional
+        An 8x8 array representing the current checkers board. Default
+        value is None, in which case the board will be set to the
+        beginning game position.
+    turn: {0, 1}, optional
+        Sets the turn of the game. Value of 0 indicates it is black's
+        turn (who moves first) while 1 indicates red's turn.
+    last_piece: tuple of int or NoneType, optional
+        Indicates the square of the last piece moved as part of a
+        multiple move. Value of None indicates no multiple move.
+    plys: int, optional
+        Number of plys (half-turns) so far in the game. A single move
+        instance may not correlate to a single ply due to multiple
+        jump moves.
+    plys_since_cap: int, optional
+        Number of plys since the last piece was captured. At 80 plys
+        (40 turns) since the last capture by either player, the game is
+        declared a draw.
+
+    Attributes
+    ----------
+    board: NumPy array
+    turn: {0, 1}
+    plys: int
+    plys_since_cap: int
+    valid_moves: list of Move instances
+    score: tuple of float
+    reward: tuple of float
+    winner: int
+    hash_value: int
+
+    Other Parameters
+    ----------------
+    hash_key: list of dict of ints or NoneType, optional
+        See hash_update method for documentation of hashing scheme.
+        Value of None indicates the hash key should be generated.
+    hash_value: int or NoneType, optional
+        Value of None indicates the hash value should be calculated
+        from the board.
     """
 
-    TEAM_PIECES = [(1, 2), (-1, -2)]
-
-    PIECE_DIRS = {1:  ((1, -1), (1, 1)),
-                  -1: ((-1, -1), (-1, 1)),
-                  2:  ((-1, -1), (-1, 1), (1, -1), (1, 1)),
-                  -2: ((-1, -1), (-1, 1), (1, -1), (1, 1))}
-
-    PIECE_TEAMS = {1: 0, 2: 0, -1: 1, -2: 1}
-
-    COMPACT = {(0, 1): 0, (0, 3): 1, (0, 5): 2, (0, 7): 3,
-               (1, 0): 4, (1, 2): 5, (1, 4): 6, (1, 6): 7,
-               (2, 1): 8, (2, 3): 9, (2, 5): 10, (2, 7): 11,
-               (3, 0): 12, (3, 2): 13, (3, 4): 14, (3, 6): 15,
-               (4, 1): 16, (4, 3): 17, (4, 5): 18, (4, 7): 19,
-               (5, 0): 20, (5, 2): 21, (5, 4): 22, (5, 6): 23,
-               (6, 1): 24, (6, 3): 25, (6, 5): 26, (6, 7): 27,
-               (7, 0): 28, (7, 2): 29, (7, 4): 30, (7, 6): 31}
-
     players = 2
-    upper = 569988000.0
     lower = -569988000.0
-    upper_sum = 0  # Zero sum game
+    upper_sum = 0
 
-    hash_length = 32
+    _hash_length = 32
+
+    # Constants useful for calculations.
+    _TEAM_PIECES = [(1, 2), (-1, -2)]
+
+    _PIECE_DIRS = {1:  ((1, -1), (1, 1)),
+                   -1: ((-1, -1), (-1, 1)),
+                   2:  ((-1, -1), (-1, 1), (1, -1), (1, 1)),
+                   -2: ((-1, -1), (-1, 1), (1, -1), (1, 1))}
+
+    _PIECE_TEAMS = {1: 0, 2: 0, -1: 1, -2: 1}
 
     def __init__(self,
                  board=None,
                  turn=0,
+                 last_piece=None,
                  plys=0,
                  plys_since_cap=0,
                  hash_value=None,
                  hash_key=None):
-        """Initialize the beginning of a game of checkers.
-
-        Args:
-            board: An 8x8 numpy array representing the game board. If no
-                argument or None is passed, the board is initialized to
-                the starting board.
-            turn: An integer 0 or 1 noting if its black or red turn,
-                respectively. Default value 0.
-            plys: An integer tracking the number of plys (half-turns)
-                taken in this game.
-            plys_since_cap: An integer tracking the number of plys since
-                the last capture. Used to implement the 40 turn draw
-                rule.
-        """
         if board is None:
+            # Board at beginning of checkers game.
             self.board = np.asarray(
                 [[0,  1,  0,  1,  0,  1,  0,  1],
                  [1,  0,  1,  0,  1,  0,  1,  0],
@@ -153,18 +174,23 @@ class CheckersGamestate(GamestateTemplate):
         else:
             self.board = board
         self._turn = turn
-        self._valid_moves = []
-        self._winner = None
-        self._score = None
+        self._last_piece = last_piece
         self.plys = plys
         self.plys_since_cap = plys_since_cap
 
+        # Calculated as needed.
+        self._valid_moves = []
+        self._score = None
+        self._reward = None
+        self._winner = None
+
+        # Generated hash key and hash value if none are given.
         if hash_key is None:
-            self.hash_key = [{piece: random.getrandbits(self.hash_length)
-                              for piece in (-2, -1, 1, 2)}
-                             for _ in range(32)]
+            self._hash_key = [{piece: random.getrandbits(self._hash_length)
+                               for piece in (-2, -1, 1, 2)}
+                              for _ in range(32)]
         else:
-            self.hash_key = hash_key
+            self._hash_key = hash_key
         if hash_value is None:
             self.hash_board()
         else:
@@ -172,194 +198,124 @@ class CheckersGamestate(GamestateTemplate):
 
     @property
     def turn(self):
-        """Get turn attribute.
+        """
+        Get turn attribute.
 
-        Returns:
-            0: Black's turn
-            1: Red's turn
+        Returns
+        -------
+            turn: int
+                0 for Black's turn, 1 for Red's turn.
         """
         return self._turn
 
     @turn.setter
     def turn(self, new_turn):
-        """Set turn attribute and reset valid moves attribute.
+        """
+        Set turn attribute and reset turn dependent attributes.
 
         Turn attribute should not be set directly, but can be useful
-        for debug and testing. In this case, valid_moves, score, and
-        winner should be recalculated.
+        for testing.
         """
         if new_turn != self._turn:
             self._turn = new_turn
+            self._last_piece = None
             self._valid_moves = []
-            self._winner = None
             self._score = None
-
-    @property
-    def turn_count(self):
-        """A ply is a half turn.
-
-        Returns:
-            An integer corresponding to turns since the beginning of the
-            game. Starts at 1, and increases after two plies.
-        """
-        return (self.plys // 2) + 1
+            self._reward = None
+            self._winner = None
 
     @property
     def score(self):
-        """Score the current position.
+        """
+        Score the current position heuristically.
 
-        Returns: A tuple of 9-digit floats. The first entry is score
-            for black, the second for red. From left to right, the
-            digits of the score encode:
-            1-2: Measures piece count and value for each team.
-                +5 for turn player king, -5 for opponent king.
-                +3 for turn player man, -3 for opponent man.
-            3-4: Measures how close pieces are to becoming kings.
-                For turn player, points are awarded according to how
-                many rows each man is away from the end row. The
-                negative of the same is awarded to the opponent.
-            5-6: Measure of how many pieces are left on the board. If
-                turn player is ahead according to the other heuristics,
-                pieces left on the board are a detriment and are
-                subtracted from the score; if the turn player is losing,
-                pieces are instead added to the score. This encourages
-                trading while ahead.
-            7-9: Measures how well-placed kings are. Encourages
-                centering kings. Both row and column are scored
-                according to the equation -x(x-7), which is 0 on the
-                edges and maximal towards the center.
+        The score is calculated for black, then negated for red.
+        Score is a 9 digit float; from left to right, the digits encode:
+            -1-2: Piece evaluation.
+            -3-4: Encourages advancing men down the board.
+            -5-6: Encourages trading while ahead.
+            -7-9: Encourages centering kings.
+
+        Returns
+        -------
+        score: tuple of floats
+            A tuple of two 9 digit floats as described above. First
+            entry is for black, the second for red.
         """
         if self._score is None:
             if self.winner == 0:
                 return (float('inf'), float('-inf'))
-            elif self.winner == 1:
+            if self.winner == 1:
                 return (float('-inf'), float('inf'))
-            elif self.winner == -1:
+            if self.winner == -1:
                 return (0.0, 0.0)
-            else:
-                black_score = 0.0
-                piece_count = 0
-                for row in range(8):
-                    for col in range(8):
-                        match self.board[row][col]:
-                            case 1:
-                                black_score += 30000000
-                                black_score += row * 100000
-                                piece_count += 1
-                            case 2:
-                                black_score += 50000000
-                                black_score += row * (7 - row)
-                                black_score += col * (7 - col)
-                                piece_count += 1
-                            case -1:
-                                black_score -= 30000000
-                                black_score -= (7 - row) * 100000
-                                piece_count += 1
-                            case -2:
-                                black_score -= 50000000
-                                black_score -= row * (7 - row)
-                                black_score -= col * (7 - col)
-                                piece_count += 1
-                if black_score > 0:
-                    black_score -= piece_count * 1000
-                elif black_score < 0:
-                    black_score += piece_count * 1000
-                self._score = (black_score, -black_score)
+            black_score = 0.0
+            piece_count = 0
+            for row in range(8):
+                for col in range(8):
+                    match self.board[row][col]:
+                        case 1:
+                            black_score += 30000000
+                            black_score += row * 100000
+                            piece_count += 1
+                        case 2:
+                            black_score += 50000000
+                            black_score += row * (7 - row)
+                            black_score += col * (7 - col)
+                            piece_count += 1
+                        case -1:
+                            black_score -= 30000000
+                            black_score -= (7 - row) * 100000
+                            piece_count += 1
+                        case -2:
+                            black_score -= 50000000
+                            black_score -= row * (7 - row)
+                            black_score -= col * (7 - col)
+                            piece_count += 1
+            if black_score > 0:
+                black_score -= piece_count * 1000
+            elif black_score < 0:
+                black_score += piece_count * 1000
+            self._score = (black_score, -black_score)
         return self._score
 
-    def jumps(self, square, piece):
-        """Determine where a piece can jump to, if at all.
+    def piece_moves(self, square):
+        move_list = []
+        capt_list = []
+        if piece := self.board[square] in self._TEAM_PIECES[self.turn]:
+            for d in self._PIECE_DIRS[piece]:
+                try:
+                    square_1 = [square[0] + d[0], square[1] + d[1]]
+                    if self.board[square_1] == 0:
+                        move_list.append(ppg.checkers.Move(square, d))
+                        continue
+                    square_2 = [square_1[0] + d[0], square_1[1] + d[1]]
+                    if (self.board[square_2] == 0 and
+                        (self.board[square_1]
+                             not in self._TEAM_PIECES[self.turn])):
+                        capt_list.append(ppg.checkers.Move(square, d))
+                        continue
+                except IndexError:
+                    continue
+        return move_list, capt_list
 
-        Args:
-            square: A tuple indicating the square of the piece to check.
-            piece: Which piece is (or would be) on the given square.
 
-        Returns:
-            A dictionary where the keys are valid squares to jump to
-            and the corresponding entries are the squares jumped over.
-        """
-        steps = [((square[0] + d[0], square[1] + d[1]),
-                  (square[0] + 2*d[0], square[1] + 2*d[1]))
-                 for d in self.PIECE_DIRS[piece]]
 
-        return_list = {}
-        for step_1, step_2 in steps:
-            if (step_1[0] in range(8)
-                    and step_1[1] in range(8)
-                    and step_2[0] in range(8)
-                    and step_2[1] in range(8)):
-                if (self.board[step_1] in
-                        self.TEAM_PIECES[-self.PIECE_TEAMS[piece]+1]
-                        and self.board[step_2] == 0):
-                    return_list[step_2] = step_1
-            else:
-                continue
-        return return_list
-
-    def jump_tree(self, square, piece, capt):
-        """Find all jump moves from a given square and piece.
-
-        Args:
-            square: The square to analyze jumps from.
-            piece: The piece on the square (note the piece may not be
-                there on the board.)
-            capt: A list of pieces that have previously been
-                captured in the recursion. When initializing, use
-                an empty list.
-
-        Returns:
-            A list contiaining tuples. Each tuple is a chain of jumps
-            originating from the square input. The tuples themselves
-            contain tuples representing squares that the chain lands on.
-            These chains have all squares except the starting point.
-        """
-        return_list = []
-        jump_dict = self.jumps(square, piece)
-        for end, jump in jump_dict.items():
-            if jump not in capt:
-                jump_list = self.jump_tree(end, piece, capt + [jump])
-                if not jump_list:
-                    return_list += [(end,)]
-                else:
-                    return_list += [(end,) + tup for tup in jump_list]
-        return return_list
 
     @property
     def valid_moves(self):
-        """Return a list of all valid moves in this state.
-
-        Returns:
-            List of CheckerMove instances that constitute all valid
-            moves for the current turn holder in this state.
-        """
-        if not self._valid_moves:
-            # Captures
-            for row in range(8):
-                for col in range(8):
-                    piece = self.board[row][col]
-                    if piece in self.TEAM_PIECES[self.turn]:
-                        self.board[row][col] = 0
-                        jump_list = self.jump_tree((row, col), piece, [])
-                        self._valid_moves += [CheckersMove(((row, col),) + tup)
-                                              for tup in jump_list]
-                        self.board[row][col] = piece
-
-            # Simple moves
-            if not self._valid_moves:
-                for row in range(8):
-                    for col in range(8):
-                        piece = self.board[row][col]
-                        if piece in self.TEAM_PIECES[self.turn]:
-                            for d in self.PIECE_DIRS[piece]:
-                                if (row + d[0] in range(8)
-                                        and col + d[1] in range(8)
-                                        and self.board[row+d[0]][col+d[1]]
-                                        == 0):
-                                    move = CheckersMove(((row, col),
-                                                         (row+d[0], col+d[1])))
-                                    self._valid_moves.append(move)
-
-        return self._valid_moves
+        if self._last_piece is not None:
+            return self.piece_moves(self._last_piece)[1]
+        move_list = []
+        capt_list = []
+        for row in range(8):
+            for col in range(8):
+                new_moves, new_capts = self.piece_moves((row, col))
+                move_list += new_moves
+                capt_list += new_capts
+        if not capt_list:
+            return move_list
+        return capt_list
 
     def get_next(self, move):
         """Update the gamestate according to the provided move.

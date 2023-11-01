@@ -1,2 +1,2 @@
-from .games.template import GamestateTemplate, MoveTemplate
+from .games.template import GamestateType, MoveType
 from .games import checkers

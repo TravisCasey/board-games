@@ -2,9 +2,9 @@
 Checkers game classes.
 =====================
 
-This module contains the move class and gamestate class for the game of
-checkers The version of checkers implemented is American Checkers, as
-maintained by the American Checkers Federation.
+This module contains the `Move` class and `Gamestate` class for the game
+pf checkers. The version of checkers implemented is American Checkers,
+as maintained by the American Checkers Federation.
 
 Checkers notation and orientation:
 
@@ -26,17 +26,27 @@ Checkers notation and orientation:
     Red
 """
 
+from __future__ import annotations
 import random
-from typing import Optional
+from typing import Self
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import NDArray
 import pyplayergames as ppg
-from pyplayergames import GamestateType, MoveType
 
 
 def coord_to_num(square: tuple[int, int]) -> int:
     """
     Convert between board coordinates and standard checkers notation.
+
+    Parameters
+    ----------
+    square: tuple of int
+        (row, column) notation indexing the `board` attribute.
+
+    Returns
+    -------
+    int
+        Standard checkers notation.
     """
 
     return (8 * square[0] + square[1])//2 + 1
@@ -44,15 +54,6 @@ def coord_to_num(square: tuple[int, int]) -> int:
 def coord_sum(square: tuple[int, int], d: tuple[int, int]) -> tuple[int, int]:
     """
     Calculate next square in direction provided.
-
-    Parameters
-    ----------
-    square : tuple of int
-    d : tuple of int
-
-    Returns
-    -------
-    tuple of int
     """
 
     return (square[0] + d[0], square[1] + d[1])
@@ -135,7 +136,7 @@ class Gamestate:
 
     Attributes
     ----------
-    board : NumPy array
+    board : `numpy` array
     turn : {0, 1}
     last_piece: tuple of int, optional
     plys_since_cap : int
@@ -146,10 +147,10 @@ class Gamestate:
 
     Other Parameters
     ----------------
-    hash_key : list of dict of ints or NoneType, optional
+    hash_key : list of dict of ints, optional
         See hash_update method for documentation of hashing scheme.
         Value of None indicates the hash key should be generated.
-    hash_value : int or NoneType, optional
+    hash_value : int, optional
         Value of None indicates the hash value should be calculated
         from the board.
     """
@@ -161,32 +162,34 @@ class Gamestate:
     _hash_length = 32
 
     # Constants useful for calculations.
-    _TEAM_PIECES = [(1, 2), (-1, -2)]
+    _TEAM_PIECES: list[tuple[int, int]] = [(1, 2), (-1, -2)]
 
-    _PIECE_DIRS = {1:  ((1, -1), (1, 1)),
-                   -1: ((-1, -1), (-1, 1)),
-                   2:  ((-1, -1), (-1, 1), (1, -1), (1, 1)),
-                   -2: ((-1, -1), (-1, 1), (1, -1), (1, 1))}
+    _PIECE_DIRS: dict[int, tuple[tuple[int, int], ...]] = {
+        1:  ((1, -1), (1, 1)),
+        -1: ((-1, -1), (-1, 1)),
+        2:  ((-1, -1), (-1, 1), (1, -1), (1, 1)),
+        -2: ((-1, -1), (-1, 1), (1, -1), (1, 1))}
 
-    _PIECE_TEAMS = {1: 0, 2: 0, -1: 1, -2: 1}
+    _PIECE_TEAMS: dict[int, int] = {1: 0, 2: 0, -1: 1, -2: 1}
 
-    _SQUARES = ((0, 1), (0, 3), (0, 5), (0, 7),
-                (1, 0), (1, 2), (1, 4), (1, 6),
-                (2, 1), (2, 3), (2, 5), (2, 7),
-                (3, 0), (3, 2), (3, 4), (3, 6),
-                (4, 1), (4, 3), (4, 5), (4, 7),
-                (5, 0), (5, 2), (5, 4), (5, 6),
-                (6, 1), (6, 3), (6, 5), (6, 7),
-                (7, 0), (7, 2), (7, 4), (7, 6))
+    _SQUARES: tuple[tuple[int, int], ...] = (
+        (0, 1), (0, 3), (0, 5), (0, 7),
+        (1, 0), (1, 2), (1, 4), (1, 6),
+        (2, 1), (2, 3), (2, 5), (2, 7),
+        (3, 0), (3, 2), (3, 4), (3, 6),
+        (4, 1), (4, 3), (4, 5), (4, 7),
+        (5, 0), (5, 2), (5, 4), (5, 6),
+        (6, 1), (6, 3), (6, 5), (6, 7),
+        (7, 0), (7, 2), (7, 4), (7, 6))
 
     def __init__(
         self,
-        board: Optional[ArrayLike] = None,
+        board: NDArray[np.int_] | None = None,
         turn: int = 0,
-        last_piece: Optional[tuple[int, int]] = None,
+        last_piece: tuple[int, int] | None = None,
         plys_since_cap: int = 0,
-        hash_value: Optional[int] = None,
-        hash_key: Optional[dict[tuple[int, int], dict[int, int]]] = None
+        hash_value: int | None = None,
+        hash_key: dict[tuple[int, int], dict[int, int]] | None = None
         ) -> None:
 
         if board is None:
@@ -334,13 +337,13 @@ class Gamestate:
     def piece_moves(
         self,
         square: tuple[int, int]
-        ) -> tuple[list[MoveType], list[MoveType]]:
+        ) -> tuple[list[ppg.checkers.Move], list[ppg.checkers.Move]]:
         """
         Generate possible `Move` instances from an individual square.
 
-        Tests both simple moves and captures; moves generated are not
-        necessarily valid; for example, no simple moves are valid if
-        there are captures available.
+        Tests both simple moves and captures. `Move` instances generated
+        are not necessarily valid; for example, no simple moves are
+        valid if there are captures available.
 
         Parameters
         ----------
@@ -375,13 +378,9 @@ class Gamestate:
         return move_list, capt_list
 
     @property
-    def valid_moves(self) -> list[MoveType]:
+    def valid_moves(self) -> list[ppg.checkers.Move]:
         """
         A list of all valid moves in the current state.
-
-        Returns
-        -------
-        list of Move instances
         """
 
         if not self._valid_moves:
@@ -404,26 +403,25 @@ class Gamestate:
         return self._valid_moves
 
     @valid_moves.setter
-    def valid_moves(self, new_valid_moves: list[MoveType]) -> None:
+    def valid_moves(self, new_valid_moves: list[ppg.checkers.Move]) -> None:
         """
-        Set `valid_moves` attribute directly.
+        Set the `valid_moves` attribute directly.
 
         No checks on validity are made. This functionality is inteded
         for setting the `valid_moves` attribute of a newly created
         `Gamestate` instance with an ongoing multiple jump.
         """
+
         self._valid_moves = new_valid_moves
 
-    def get_next(self, move: MoveType) -> GamestateType:
+    def get_next(self, move: ppg.checkers.Move) -> Self:
         """
         Generate the next `Gamestate` according to the provided move.
-
-        This method assumes that the move is sourced from the
-        `valid_moves` attribute.
 
         Parameters
         ----------
         move : Move instance
+            Assumed to be from `valid_moves` attribute.
 
         Return
         ------
@@ -469,7 +467,7 @@ class Gamestate:
                         hash_value=self._hash_value,
                         hash_key=self._hash_key
                         )
-                    next_state.valid_moves = move_list
+                    next_state.valid_moves = move_list[1]
 
                 else:
                     next_state = ppg.checkers.Gamestate(
@@ -510,7 +508,7 @@ class Gamestate:
         return next_state
 
     @property
-    def winner(self) -> Optional[int]:
+    def winner(self) -> int | None:
         """
         Determine the winner of the game, if any.
 
@@ -541,7 +539,7 @@ class Gamestate:
         return self.winner is not None
 
     @property
-    def reward(self) -> Optional[tuple[float, float]]:
+    def reward(self) -> tuple[float, float]:
         """
         Return a player-based reward based on outcome of the game.
 
@@ -578,10 +576,6 @@ class Gamestate:
         Method should be called before a piece is removed from the
         square and after a piece is added to the square.
         See `update_board` method.
-
-        Parameters
-        ----------
-        square : tuple of int
         """
 
         piece = self.board[square]
@@ -592,7 +586,7 @@ class Gamestate:
         """
         Calculate hash of current board state.
 
-        Hashes are ideally set iteratively when pieces are added and
+        Hashes are typically set iteratively when pieces are added and
         removed according to the `hash_update` method. However, the hash
         can be calculated from scratch with this method.
         """

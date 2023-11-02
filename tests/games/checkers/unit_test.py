@@ -15,6 +15,7 @@ import pytest
 import numpy as np
 import pyplayergames as ppg
 
+
 class TestCheckersUtilFunctions():
 
     @pytest.mark.parametrize('square, num',

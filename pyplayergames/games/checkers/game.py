@@ -117,6 +117,11 @@ class Gamestate:
 
     Parameters
     ----------
+    parent : Gamestate instance, optional
+        The `Gamestate` prior to this instance. The new instance is
+        initialized by updating this `Gamestate` with the `Move`
+        parameter. If set to None, the new `Gamestate` instance will
+        instead reference the other parameters for state information.
     move : Move instance, optional
         The move immediately prior to the gamestate. When the gamestate
         is initialized, the board is updated to reflect this move. Value
@@ -128,30 +133,29 @@ class Gamestate:
     turn : {0, 1}, optional
         Sets the turn of the game. Default value of 0 indicates it is
         black's turn (who moves first) while 1 indicates red's turn.
-    plys_since_cap : int, optional
-        Number of plys (half-turns) since the last piece was captured.
-        A single move instance may not correlate to a single ply due to
-        multiple jump moves. At 80 plys (40 turns) since the last
-        capture by either player, the game is declared a draw.
+    plys_to_draw : int, optional
+        Number of plys (half-turns) since the last piece was captured or
+        man was advanced. A single move instance may not correlate to a
+        single ply due to multiple jump moves. At 80 plys (40 turns)
+        since the last capture or man advancement by either player, the
+        game is declared a draw.
+    hash_value : int, optional
+        Value of None indicates the hash value should be calculated
+        from the board.
 
     Attributes
     ----------
+    parent : `Gamestate` instance, optional
     board : `numpy` array
     turn : {0, 1}
-    plys_since_cap : int
+    plys_to_draw : int
     valid_moves : list of `Move` instances
     score : tuple of float
     reward : tuple of float
     winner : int
+    hash_key : dict
+    hash_count : dict
 
-    Other Parameters
-    ----------------
-    hash_key : list of dict of ints, optional
-        See _hash_update method for documentation of hashing scheme.
-        Value of None indicates the hash key should be generated.
-    hash_value : int, optional
-        Value of None indicates the hash value should be calculated
-        from the board.
     """
 
     players = 2
@@ -167,7 +171,8 @@ class Gamestate:
         1:  ((1, -1), (1, 1)),
         -1: ((-1, -1), (-1, 1)),
         2:  ((-1, -1), (-1, 1), (1, -1), (1, 1)),
-        -2: ((-1, -1), (-1, 1), (1, -1), (1, 1))}
+        -2: ((-1, -1), (-1, 1), (1, -1), (1, 1))
+        }
 
     _PIECE_TEAMS: dict[int, int] = {1: 0, 2: 0, -1: 1, -2: 1}
 
@@ -179,62 +184,73 @@ class Gamestate:
         (4, 1), (4, 3), (4, 5), (4, 7),
         (5, 0), (5, 2), (5, 4), (5, 6),
         (6, 1), (6, 3), (6, 5), (6, 7),
-        (7, 0), (7, 2), (7, 4), (7, 6))
+        (7, 0), (7, 2), (7, 4), (7, 6)
+        )
 
     def __init__(
         self,
+        parent: ppg.checkers.Gamestate | None = None,
         move: ppg.checkers.Move | None = None,
         board: NDArray[np.int_] | None = None,
         turn: int = 0,
-        plys_since_cap: int = 0,
-        hash_value: int | None = None,
-        hash_key: dict[tuple[int, int], dict[int, int]] | None = None
+        plys_to_draw: int = 0,
+        hash_value: int | None = None
         ) -> None:
 
-        if board is None:
-            # Board at beginning of checkers game.
-            self.board = np.asarray(
-                [[0,  1,  0,  1,  0,  1,  0,  1],
-                 [1,  0,  1,  0,  1,  0,  1,  0],
-                 [0,  1,  0,  1,  0,  1,  0,  1],
-                 [0,  0,  0,  0,  0,  0,  0,  0],
-                 [0,  0,  0,  0,  0,  0,  0,  0],
-                 [-1, 0, -1,  0, -1,  0, -1,  0],
-                 [0, -1,  0, -1,  0, -1,  0, -1],
-                 [-1, 0, -1,  0, -1,  0, -1,  0]]
-            )
-        else:
-            self.board = board
-
-        # Calculated as needed.
-
+        self.board: NDArray[np.int_]
+        self._turn: int
+        self.plys_to_draw: int
+        self._valid_moves: list[ppg.checkers.Move] = []
+        self.hash_key: dict[tuple[int, int], dict[int, int]]
+        self._hash_value: int
+        self.hash_count: dict[int, tuple[list[ppg.checkers.Gamestate],
+                                         list[ppg.checkers.Gamestate]]]
         self._score: tuple[float, float] | None = None
         self._reward: tuple[float, float] | None = None
         self._winner: int | None = None
 
-        # Generate hash key and hash value if none are given.
-        if hash_key is None:
-            self._hash_key = {square:
-                              {piece: random.getrandbits(self._hash_length)
-                               for piece in (-2, -1, 1, 2)}
-                              for square in self._SQUARES}
+        if parent is not None:
+            self.board = np.copy(parent.board)
+            self._turn = parent.turn
+            self.plys_to_draw = parent.plys_to_draw
+            self.hash_key = parent.hash_key
+            self._hash_value = hash(parent)
+            self.hash_count = parent.hash_count
         else:
-            self._hash_key = hash_key
-        if hash_value is None:
-            self._hash_board()
-        else:
-            self._hash_value = hash_value
-
-        # Set state according to move
-        # No move no update
-        if move is None:
+            if board is None:
+                # Board at beginning of checkers game.
+                self.board = np.asarray(
+                    [[0,  1,  0,  1,  0,  1,  0,  1],
+                     [1,  0,  1,  0,  1,  0,  1,  0],
+                     [0,  1,  0,  1,  0,  1,  0,  1],
+                     [0,  0,  0,  0,  0,  0,  0,  0],
+                     [0,  0,  0,  0,  0,  0,  0,  0],
+                     [-1, 0, -1,  0, -1,  0, -1,  0],
+                     [0, -1,  0, -1,  0, -1,  0, -1],
+                     [-1, 0, -1,  0, -1,  0, -1,  0]]
+                )
+            else:
+                self.board = board
             self._turn = turn
-            self.plys_since_cap = plys_since_cap
-            self._valid_moves: list[ppg.checkers.Move] = []
+            self.plys_to_draw = plys_to_draw
 
+            # Generate hash key and hash value if none are given.
+            self.hash_key = {
+                square: {
+                    piece: random.getrandbits(self._hash_length)
+                    for piece in (-2, -1, 1, 2)
+                    }
+                for square in self._SQUARES
+                }
+            if hash_value is None:
+                self._hash_board()
+            else:
+                self._hash_value = hash_value
+
+        # Set state according to provided move
         # Jump
-        elif move.capt:
-            self.plys_since_cap = 0
+        if move is not None and move.capt:
+            self.plys_to_draw = 0
             piece = self.board[move.start]
             square_1 = ppg.checkers.coord_sum(move.start, move.d)
             square_2 = ppg.checkers.coord_sum(square_1, move.d)
@@ -244,23 +260,27 @@ class Gamestate:
             # Test for man becoming a king
             if piece in (1, -1) and square_2[0] in (0, 7):
                 self._update_board(square_2, 2*piece)
-                self._turn = -turn + 1
+                self._turn = -self.turn + 1
 
             # Test for a continuing jump move
             else:
                 self._update_board(square_2, piece)
-                self._turn = turn
                 move_list = self.piece_moves(square_2)
                 if move_list[1]:
                     self._valid_moves = move_list[1]
                 else:
-                    self._turn = -turn + 1
+                    self._turn = -self.turn + 1
+
+            if self._turn == 0:
+                self.hash_count = {self._hash_value: ([self], [])}
+            else:
+                self.hash_count = {self._hash_value: ([], [self])}
 
         # Simple move
-        else:
-            self._turn = -turn + 1
-            self.plys_since_cap = plys_since_cap + 1
+        elif move is not None:
+            self._turn = -self.turn + 1
             piece = self.board[move.start]
+
             square_1 = ppg.checkers.coord_sum(move.start, move.d)
             self._update_board(move.start, 0)
 
@@ -269,6 +289,25 @@ class Gamestate:
                 self._update_board(square_1, 2*piece)
             else:
                 self._update_board(square_1, piece)
+
+            if piece in (1, -1):
+                self.plys_to_draw = 0
+                if self._turn == 0:
+                    self.hash_count = {self._hash_value: ([self], [])}
+                else:
+                    self.hash_count = {self._hash_value: ([], [self])}
+            else:
+                self.plys_to_draw += 1
+                self.hash_count.setdefault(
+                    self._hash_value,
+                    ([], [])
+                    )[self._turn].append(self)
+        else:
+            if self._turn == 0:
+                self.hash_count = {self._hash_value: ([self], [])}
+            else:
+                self.hash_count = {self._hash_value: ([], [self])}
+
 
     # Interface Methods
 
@@ -281,20 +320,13 @@ class Gamestate:
         move : Move instance
             Assumed to be from `valid_moves` attribute.
 
-        Return
-        ------
+        Returns
+        -------
         Gamestate instance
             A new Gamestate instance that reflects the changes from the
             given move.
         """
-        return ppg.checkers.Gamestate(
-            move=move,
-            board=np.copy(self.board),
-            turn=self.turn,
-            plys_since_cap=self.plys_since_cap,
-            hash_value=self._hash_value,
-            hash_key=self._hash_key
-        )
+        return ppg.checkers.Gamestate(parent=self, move=move)
 
     def is_game_over(self) -> bool:
         """
@@ -422,19 +454,35 @@ class Gamestate:
         """
         Determine the winner of the game, if any.
 
+        Black wins if Red has no valid moves on their turn and vice
+        versa. A draw occurs when either 40 turns have passed since the
+        last capture or advancement of a man, or the same position has
+        occured 3 times in the game.
+
         Returns
         -------
         {0, 1, -1}, optional
-            0 indicates Black (turn 0) wins. 1 indicates Red (turn 1)
-            wins. -1 indicates a draw, i.e. 40 turns have passed since
-            the last capture. None indicates the game is not over.
+            0 indicates Black wins. 1 indicates Red wins. -1 indicates a
+            draw. None indicates the game is not over.
         """
 
         if self._winner is None:
             if not self.valid_moves:
-                self._winner = -self.turn+1
-            elif self.plys_since_cap >= 80:
+                self._winner = -self.turn + 1
+            elif self.plys_to_draw >= 80:
                 self._winner = -1
+            else:
+                try:
+                    match_list = self.hash_count[self._hash_value][self._turn]
+                    if len(match_list) >= 3:
+                        matches: int = 0
+                        for gamestate in match_list[:-1]:
+                            if np.array_equal(self.board, gamestate.board):
+                                matches += 1
+                        if matches >= 2:
+                            self._winner = -1
+                except KeyError:
+                    pass
         return self._winner
 
     @property
@@ -556,7 +604,7 @@ class Gamestate:
 
         piece = self.board[square]
         if piece != 0:
-            self._hash_value ^= self._hash_key[square][piece]
+            self._hash_value ^= self.hash_key[square][piece]
 
     def _hash_board(self) -> None:
         """

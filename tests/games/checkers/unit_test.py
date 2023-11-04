@@ -122,7 +122,7 @@ class TestCheckersGamestate():
         {},
         {'board': 1},
         {'board': 1, 'turn': 1},
-        {'board': 1, 'plys_since_cap': 80},
+        {'board': 1, 'plys_to_draw': 80},
         {'board': 2},
         {'board': 2, 'turn': 1},
         {'board': 3},
@@ -409,12 +409,12 @@ class TestCheckersGamestate():
                 'New attribute turn incorrect.'
             )
 
-    next_plys_since_cap = [
-        1,
+    next_plys_to_draw = [
+        0,
         1,
         1,
         81,
-        1,
+        0,
         None,
         None,
         0,
@@ -423,15 +423,15 @@ class TestCheckersGamestate():
         0
     ]
 
-    @pytest.mark.parametrize('gamestate, move, plys_since_cap',
+    @pytest.mark.parametrize('gamestate, move, plys_to_draw',
                              tuple(zip(gamestate_param,
                                        next_move_list,
-                                       next_plys_since_cap)),
+                                       next_plys_to_draw)),
                              indirect=['gamestate'])
-    def test_get_next_plys_since_cap(self, gamestate, move, plys_since_cap):
+    def test_get_next_plys_to_draw(self, gamestate, move, plys_to_draw):
         if move is not None:
-            assert gamestate.get_next(move).plys_since_cap == plys_since_cap, (
-                'New attribute plys_since_cap incorrect.'
+            assert gamestate.get_next(move).plys_to_draw == plys_to_draw, (
+                'New attribute plys_to_draw incorrect.'
             )
 
     # Terminal states, scoring, reward
@@ -520,6 +520,31 @@ class TestCheckersGamestate():
         else:
             assert gamestate.reward == reward
 
+    @pytest.fixture()
+    def repetition_move_list(self):
+        return [
+            ppg.checkers.Move((3, 2), (-1, 1), False),
+            ppg.checkers.Move((4, 7), (1, -1), False),
+            ppg.checkers.Move((2, 3), (1, -1), False),
+            ppg.checkers.Move((5, 6), (-1, 1), False),
+            ppg.checkers.Move((3, 2), (-1, 1), False),
+            ppg.checkers.Move((4, 7), (1, -1), False),
+            ppg.checkers.Move((2, 3), (1, -1), False),
+            ppg.checkers.Move((5, 6), (-1, 1), False)
+        ]
+
+    def test_threefold_repetition(self, board_1, repetition_move_list):
+        gamestate = ppg.checkers.Gamestate(board=board_1)
+        for move in repetition_move_list:
+            assert not gamestate.is_game_over(), (
+                'Draw declared mistakenly.'
+            )
+            print(gamestate.hash_count)
+            gamestate = gamestate.get_next(move)
+        assert gamestate.is_game_over(), (
+            'Threefold draw did not trigger.'
+        )
+
     # Hashing
 
     @pytest.mark.parametrize('gamestate', gamestate_param, indirect=True)
@@ -527,7 +552,7 @@ class TestCheckersGamestate():
         max_value = 2**gamestate._hash_length
         for square in gamestate._SQUARES:
             for piece in (-2, -1, 1, 2):
-                hash_value = gamestate._hash_key[square][piece]
+                hash_value = gamestate.hash_key[square][piece]
                 assert isinstance(hash_value, int), (
                     f'hash key at {square}, {piece} not an integer.'
                 )

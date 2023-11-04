@@ -126,7 +126,7 @@ class TestCheckersGamestate():
         {'board': 2},
         {'board': 2, 'turn': 1},
         {'board': 3},
-        {'board': 4, 'last_piece': (1, 4)},
+        {'board': 5, 'move': ppg.checkers.Move((4, 3), (-1, 1), True)},
         {'board': 4, 'turn': 1},
         {'board': 5},
         {'board': 5, 'turn': 1}
@@ -156,9 +156,9 @@ class TestCheckersGamestate():
         [(0, 7),
          (6, 1),
          (6, 5)],
-        [(1, 2),
-         (1, 4),
-         (1, 6)],
+        [(2, 5),
+         (3, 6),
+         (5, 6)],
         [(2, 3),
          (6, 1),
          (6, 5)],
@@ -194,9 +194,9 @@ class TestCheckersGamestate():
         [([], []),
          ([], []),
          ([], [])],
-        [([(1, -1)], [(1, 1)]),
-         ([(-1, -1), (-1, 1), (1, 1)], [(1, -1)]),
-         ([(-1, -1), (-1, 1), (1, -1), (1, 1)], [])],
+        [([(1, -1)], [(-1, -1), (-1, 1)]),
+         ([(1, -1), (1, 1)], []),
+         ([(-1, -1), (-1, 1), (1, 1)], [(1, -1)])],
         [([], [(-1, -1), (-1, 1)]),
          ([(-1, -1), (-1, 1)], []),
          ([(-1, -1), (-1, 1)], [])],
@@ -228,7 +228,7 @@ class TestCheckersGamestate():
         [(2, 5), (2, 5), (2, 5), (3, 6)],
         [],
         [],
-        [(1, 4)],
+        [(2, 5), (2, 5)],
         [(2, 3), (2, 3)],
         [(4, 3), (5, 6)],
         [(6, 5)]
@@ -242,7 +242,7 @@ class TestCheckersGamestate():
         [(-1, -1), (-1, 1), (1, -1), (1, -1)],
         [],
         [],
-        [(1, -1)],
+        [(-1, -1), (-1, 1)],
         [(-1, -1), (-1, 1)],
         [(-1, 1), (1, -1)],
         [(-1, 1)]
@@ -265,7 +265,7 @@ class TestCheckersGamestate():
         ppg.checkers.Move((3, 6), (1, -1), False),
         None,
         None,
-        ppg.checkers.Move((1, 4), (1, -1), True),
+        ppg.checkers.Move((2, 5), (-1, -1), True),
         ppg.checkers.Move((2, 3), (-1, 1), True),
         ppg.checkers.Move((4, 3), (-1, 1), True),
         ppg.checkers.Move((6, 5), (-1, 1), True)
@@ -325,13 +325,13 @@ class TestCheckersGamestate():
         None,
         None,
         np.asarray(
-            [[0,  0,  0,  0,  0,  0,  0,  0],
-             [0,  0,  1,  0,  0,  0,  2,  0],
+            [[0,  0,  0,  2,  0,  0,  0,  0],
+             [0,  0, -1,  0,  0,  0, -2,  0],
              [0,  0,  0,  0,  0,  0,  0,  0],
-             [0,  0,  2,  0,  0,  0,  0,  0],
+             [0,  0,  0,  0,  0,  0,  1,  0],
              [0,  0,  0,  0,  0,  0,  0,  0],
-             [0,  0,  0,  0,  0,  0,  0,  0],
-             [0, -1,  0,  0,  0, -1,  0,  0],
+             [0,  0,  0,  0,  0,  0,  2,  0],
+             [0,  0,  0,  0,  0, -1,  0,  0],
              [0,  0,  0,  0,  0,  0,  0,  0]]
         ),
         np.asarray(
@@ -393,7 +393,7 @@ class TestCheckersGamestate():
         1,
         None,
         None,
-        1,
+        0,
         0,
         0,
         1
@@ -444,7 +444,7 @@ class TestCheckersGamestate():
         (49997020.0, -49997020.0),
         (float('inf'), float('-inf')),
         (float('-inf'), float('inf')),
-        (39394030.0, -39394030.0),
+        (-10992976.0, 10992976.0),
         (39394030.0, -39394030.0),
         (-41391972.0, 41391972.0),
         (-41391972.0, 41391972.0)
@@ -556,14 +556,14 @@ class TestCheckersGamestate():
             square = random.choice(gamestate._SQUARES)
             piece = gamestate.board[square]
             new_piece = random.choice((-2, -1, 0, 1, 2))
-            gamestate.update_board(square, new_piece)
+            gamestate._update_board(square, new_piece)
             if piece == new_piece:
                 assert hash(gamestate) == original_hash, (
                     'Identical board position has different hash.'
                 )
             elif hash(gamestate) == original_hash:
                 errors += 1
-            gamestate.update_board(square, piece)
+            gamestate._update_board(square, piece)
             assert hash(gamestate) == original_hash, (
                 'Identical board position has different hash.'
             )

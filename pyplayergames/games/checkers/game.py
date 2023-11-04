@@ -1,17 +1,17 @@
 """
-Checkers game classes.
-=====================
+Checkers
+========
 
-This module contains the `Move` class and `Gamestate` class for the game
-pf checkers. The version of checkers implemented is American Checkers,
-as maintained by the American Checkers Federation.
+This module contains the logic and implementation for the game of
+checkers. The version of checkers implemented is American Checkers.
 
+Notes
+-----
 Checkers notation and orientation:
 
 ::
 
     Black (first move)
-
         0  1  2  3  4  5  6  7
 
     0  |  | 1|  | 2|  | 3|  | 4|
@@ -22,13 +22,12 @@ Checkers notation and orientation:
     5  |21|  |22|  |23|  |24|  |
     6  |  |25|  |26|  |27|  |28|
     7  |29|  |30|  |31|  |32|  |
-
     Red
+
 """
 
 from __future__ import annotations
 import random
-from typing import Self
 import numpy as np
 from numpy.typing import NDArray
 import pyplayergames as ppg
@@ -118,6 +117,10 @@ class Gamestate:
 
     Parameters
     ----------
+    move : Move instance, optional
+        The move immediately prior to the gamestate. When the gamestate
+        is initialized, the board is updated to reflect this move. Value
+        of None applies no update.
     board : NumPy array, optional
         An 8x8 array representing the current checkers board. Default
         value is None, in which case the board will be set to the
@@ -125,9 +128,6 @@ class Gamestate:
     turn : {0, 1}, optional
         Sets the turn of the game. Default value of 0 indicates it is
         black's turn (who moves first) while 1 indicates red's turn.
-    last_piece : tuple of int, optional
-        Indicates the square of the last piece moved as part of a
-        multiple move. Default value of None indicates no multiple move.
     plys_since_cap : int, optional
         Number of plys (half-turns) since the last piece was captured.
         A single move instance may not correlate to a single ply due to
@@ -138,7 +138,6 @@ class Gamestate:
     ----------
     board : `numpy` array
     turn : {0, 1}
-    last_piece: tuple of int, optional
     plys_since_cap : int
     valid_moves : list of `Move` instances
     score : tuple of float
@@ -148,7 +147,7 @@ class Gamestate:
     Other Parameters
     ----------------
     hash_key : list of dict of ints, optional
-        See hash_update method for documentation of hashing scheme.
+        See _hash_update method for documentation of hashing scheme.
         Value of None indicates the hash key should be generated.
     hash_value : int, optional
         Value of None indicates the hash value should be calculated
@@ -184,9 +183,9 @@ class Gamestate:
 
     def __init__(
         self,
+        move: ppg.checkers.Move | None = None,
         board: NDArray[np.int_] | None = None,
         turn: int = 0,
-        last_piece: tuple[int, int] | None = None,
         plys_since_cap: int = 0,
         hash_value: int | None = None,
         hash_key: dict[tuple[int, int], dict[int, int]] | None = None
@@ -206,15 +205,12 @@ class Gamestate:
             )
         else:
             self.board = board
-        self._turn = turn
-        self.last_piece = last_piece
-        self.plys_since_cap = plys_since_cap
 
         # Calculated as needed.
-        self._valid_moves = []
-        self._score = None
-        self._reward = None
-        self._winner = None
+
+        self._score: tuple[float, float] | None = None
+        self._reward: tuple[float, float] | None = None
+        self._winner: int | None = None
 
         # Generate hash key and hash value if none are given.
         if hash_key is None:
@@ -225,25 +221,139 @@ class Gamestate:
         else:
             self._hash_key = hash_key
         if hash_value is None:
-            self.hash_board()
+            self._hash_board()
         else:
             self._hash_value = hash_value
 
-    def update_board(self, square: tuple[int, int], piece: int) -> None:
+        # Set state according to move
+        # No move no update
+        if move is None:
+            self._turn = turn
+            self.plys_since_cap = plys_since_cap
+            self._valid_moves: list[ppg.checkers.Move] = []
+
+        # Jump
+        elif move.capt:
+            self.plys_since_cap = 0
+            piece = self.board[move.start]
+            square_1 = ppg.checkers.coord_sum(move.start, move.d)
+            square_2 = ppg.checkers.coord_sum(square_1, move.d)
+            self._update_board(move.start, 0)
+            self._update_board(square_1, 0)
+
+            # Test for man becoming a king
+            if piece in (1, -1) and square_2[0] in (0, 7):
+                self._update_board(square_2, 2*piece)
+                self._turn = -turn + 1
+
+            # Test for a continuing jump move
+            else:
+                self._update_board(square_2, piece)
+                self._turn = turn
+                move_list = self.piece_moves(square_2)
+                if move_list[1]:
+                    self._valid_moves = move_list[1]
+                else:
+                    self._turn = -turn + 1
+
+        # Simple move
+        else:
+            self._turn = -turn + 1
+            self.plys_since_cap = plys_since_cap + 1
+            piece = self.board[move.start]
+            square_1 = ppg.checkers.coord_sum(move.start, move.d)
+            self._update_board(move.start, 0)
+
+            # Test for man becoming a king
+            if piece in (1, -1) and square_1[0] in (0, 7):
+                self._update_board(square_1, 2*piece)
+            else:
+                self._update_board(square_1, piece)
+
+    # Interface Methods
+
+    def get_next(self, move: ppg.checkers.Move) -> ppg.checkers.Gamestate:
         """
-        Updates and hashes the board.
+        Generate the next `Gamestate` according to the provided move.
+
+        Parameters
+        ----------
+        move : Move instance
+            Assumed to be from `valid_moves` attribute.
+
+        Return
+        ------
+        Gamestate instance
+            A new Gamestate instance that reflects the changes from the
+            given move.
+        """
+        return ppg.checkers.Gamestate(
+            move=move,
+            board=np.copy(self.board),
+            turn=self.turn,
+            plys_since_cap=self.plys_since_cap,
+            hash_value=self._hash_value,
+            hash_key=self._hash_key
+        )
+
+    def is_game_over(self) -> bool:
+        """
+        Determine if the game is over.
+
+        Returns
+        -------
+        bool
+            True if the game is over, False otherwise.
+        """
+        return self.winner is not None
+
+    def __hash__(self) -> int:
+        return self._hash_value
+
+    def piece_moves(
+        self,
+        square: tuple[int, int]
+        ) -> tuple[list[ppg.checkers.Move], list[ppg.checkers.Move]]:
+        """
+        Generate possible `Move` instances from an individual square.
+
+        Tests both simple moves and captures. `Move` instances generated
+        are not necessarily valid; for example, no simple moves are
+        valid if there are captures available.
 
         Parameters
         ----------
         square : tuple of int
-            Square on board to update to new piece.
-        piece : {-2, -1, 0, 1, 2}
-            New piece to place on the square.
+            The square on the board to generate moves from.
+
+        Returns
+        -------
+        move_list : list of Move instances
+            List of simple moves.
+        capt_list : list of Move instances
+            List of captures.
         """
 
-        self.hash_update(square)
-        self.board[square] = piece
-        self.hash_update(square)
+        move_list = []
+        capt_list = []
+        piece = self.board[square]
+        if piece in self._TEAM_PIECES[self.turn]:
+            for d in self._PIECE_DIRS[piece]:
+                try:
+                    square_1 = ppg.checkers.coord_sum(square, d)
+                    if self.board[square_1] == 0:
+                        move_list.append(ppg.checkers.Move(square, d, False))
+                        continue
+                    square_2 = ppg.checkers.coord_sum(square_1, d)
+                    if (self.board[square_2] == 0
+                        and (self.board[square_1]
+                             not in self._TEAM_PIECES[self.turn])):
+                        capt_list.append(ppg.checkers.Move(square, d, True))
+                except IndexError:
+                    continue
+        return move_list, capt_list
+
+    # Properties
 
     @property
     def turn(self) -> int:
@@ -269,11 +379,94 @@ class Gamestate:
 
         if new_turn != self._turn:
             self._turn = new_turn
-            self.last_piece = None
             self._valid_moves = []
             self._score = None
             self._reward = None
             self._winner = None
+
+    @property
+    def valid_moves(self) -> list[ppg.checkers.Move]:
+        """
+        A list of all valid moves in the current state.
+        """
+
+        if not self._valid_moves:
+            move_list = []
+            capt_list = []
+            for square in self._SQUARES:
+                new_moves, new_capts = self.piece_moves(square)
+                move_list += new_moves
+                capt_list += new_capts
+
+            # Simple moves are only valid if there are no captures.
+            if not capt_list:
+                self._valid_moves = move_list
+            else:
+                self._valid_moves = capt_list
+        return self._valid_moves
+
+    @valid_moves.setter
+    def valid_moves(self, new_valid_moves: list[ppg.checkers.Move]) -> None:
+        """
+        Set the `valid_moves` attribute directly.
+
+        No checks on validity are made. This functionality is inteded
+        for setting the `valid_moves` attribute of a newly created
+        `Gamestate` instance with an ongoing multiple jump.
+        """
+
+        self._valid_moves = new_valid_moves
+
+    @property
+    def winner(self) -> int | None:
+        """
+        Determine the winner of the game, if any.
+
+        Returns
+        -------
+        {0, 1, -1}, optional
+            0 indicates Black (turn 0) wins. 1 indicates Red (turn 1)
+            wins. -1 indicates a draw, i.e. 40 turns have passed since
+            the last capture. None indicates the game is not over.
+        """
+
+        if self._winner is None:
+            if not self.valid_moves:
+                self._winner = -self.turn+1
+            elif self.plys_since_cap >= 80:
+                self._winner = -1
+        return self._winner
+
+    @property
+    def reward(self) -> tuple[float, float]:
+        """
+        Return a player-based reward based on outcome of the game.
+
+        Differs from the `score` attribute as the reward is only
+        calculated at the end of the game.
+
+        Returns
+        -------
+        tuple of float
+            Players receive 1 point for a win and 0 for a loss. Each
+            receive 0.5 for a draw.
+
+        Raises
+        ------
+        AttributeError
+            Exception is raised if this attribute is referenced before
+            the end of the game.
+        """
+
+        if self.winner == 0:
+            return (1.0, 0.0)
+        if self.winner == 1:
+            return (0.0, 1.0)
+        if self.winner == -1:
+            return (0.5, 0.5)
+        raise AttributeError(
+            'Reward attribute referenced before the game is over'
+            )
 
     @property
     def score(self) -> tuple[float, float]:
@@ -334,266 +527,46 @@ class Gamestate:
             self._score = (black_score, -black_score)
         return self._score
 
-    def piece_moves(
-        self,
-        square: tuple[int, int]
-        ) -> tuple[list[ppg.checkers.Move], list[ppg.checkers.Move]]:
-        """
-        Generate possible `Move` instances from an individual square.
+    # Private Methods
 
-        Tests both simple moves and captures. `Move` instances generated
-        are not necessarily valid; for example, no simple moves are
-        valid if there are captures available.
+    def _update_board(self, square: tuple[int, int], piece: int) -> None:
+        """
+        Updates and hashes the board.
 
         Parameters
         ----------
         square : tuple of int
-            The square on the board to generate moves from.
-
-        Returns
-        -------
-        move_list : list of Move instances
-            List of simple moves.
-        capt_list : list of Move instances
-            List of captures.
+            Square on board to update to new piece.
+        piece : {-2, -1, 0, 1, 2}
+            New piece to place on the square.
         """
 
-        move_list = []
-        capt_list = []
-        piece = self.board[square]
-        if piece in self._TEAM_PIECES[self.turn]:
-            for d in self._PIECE_DIRS[piece]:
-                try:
-                    square_1 = ppg.checkers.coord_sum(square, d)
-                    if self.board[square_1] == 0:
-                        move_list.append(ppg.checkers.Move(square, d, False))
-                        continue
-                    square_2 = ppg.checkers.coord_sum(square_1, d)
-                    if (self.board[square_2] == 0
-                        and (self.board[square_1]
-                             not in self._TEAM_PIECES[self.turn])):
-                        capt_list.append(ppg.checkers.Move(square, d, True))
-                except IndexError:
-                    continue
-        return move_list, capt_list
+        self._hash_update(square)
+        self.board[square] = piece
+        self._hash_update(square)
 
-    @property
-    def valid_moves(self) -> list[ppg.checkers.Move]:
-        """
-        A list of all valid moves in the current state.
-        """
-
-        if not self._valid_moves:
-            if self.last_piece is not None:
-                # Only captures are valid in multiple jumps.
-                self._valid_moves = self.piece_moves(self.last_piece)[1]
-            else:
-                move_list = []
-                capt_list = []
-                for square in self._SQUARES:
-                    new_moves, new_capts = self.piece_moves(square)
-                    move_list += new_moves
-                    capt_list += new_capts
-
-                # Simple moves are only valid if there are no captures.
-                if not capt_list:
-                    self._valid_moves = move_list
-                else:
-                    self._valid_moves = capt_list
-        return self._valid_moves
-
-    @valid_moves.setter
-    def valid_moves(self, new_valid_moves: list[ppg.checkers.Move]) -> None:
-        """
-        Set the `valid_moves` attribute directly.
-
-        No checks on validity are made. This functionality is inteded
-        for setting the `valid_moves` attribute of a newly created
-        `Gamestate` instance with an ongoing multiple jump.
-        """
-
-        self._valid_moves = new_valid_moves
-
-    def get_next(self, move: ppg.checkers.Move) -> Self:
-        """
-        Generate the next `Gamestate` according to the provided move.
-
-        Parameters
-        ----------
-        move : Move instance
-            Assumed to be from `valid_moves` attribute.
-
-        Return
-        ------
-        Gamestate instance
-            A new Gamestate instance that reflects the changes from the
-            given move.
-        """
-
-        piece = self.board[move.start]
-        square_1 = ppg.checkers.coord_sum(move.start, move.d)
-
-        if move.capt:
-            # Captures
-            # Check if jump can be continued by setting board to next
-            # state and calculating moves from terminal square.
-            square_2 = ppg.checkers.coord_sum(square_1, move.d)
-            self.update_board(move.start, 0)
-            capt_piece = self.board[square_1]
-            self.update_board(square_1, 0)
-
-            if piece in (1, -1) and square_2[0] in (0, 7):
-                # No multiple jumps if the piece becomes a king.
-                self.update_board(square_2, 2*piece)
-                next_state = ppg.checkers.Gamestate(
-                    board=np.copy(self.board),
-                    turn=-self.turn+1,
-                    last_piece=None,
-                    plys_since_cap=0,
-                    hash_value=self._hash_value,
-                    hash_key=self._hash_key
-                )
-
-            else:
-                self.update_board(square_2, piece)
-                move_list = self.piece_moves(square_2)
-                if move_list[1]:
-                    # Jump is continued
-                    next_state = ppg.checkers.Gamestate(
-                        board=np.copy(self.board),
-                        turn=self.turn,
-                        last_piece=square_2,
-                        plys_since_cap=self.plys_since_cap,
-                        hash_value=self._hash_value,
-                        hash_key=self._hash_key
-                        )
-                    next_state.valid_moves = move_list[1]
-
-                else:
-                    next_state = ppg.checkers.Gamestate(
-                        board=np.copy(self.board),
-                        turn=-self.turn+1,
-                        last_piece=None,
-                        plys_since_cap=0,
-                        hash_value=self._hash_value,
-                        hash_key=self._hash_key
-                        )
-
-            # Reset board
-            self.update_board(move.start, piece)
-            self.update_board(square_1, capt_piece)
-            self.update_board(square_2, 0)
-
-        else:
-            # Simple moves
-            self.update_board(move.start, 0)
-            if piece in (1, -1) and square_1[1] in (0, 7):
-                # Piece becomes king
-                self.update_board(square_1, 2*piece)
-            else:
-                self.update_board(square_1, piece)
-            next_state = ppg.checkers.Gamestate(
-                board=np.copy(self.board),
-                turn=-self.turn+1,
-                last_piece=None,
-                plys_since_cap=self.plys_since_cap+1,
-                hash_value=self._hash_value,
-                hash_key=self._hash_key
-            )
-
-            # Reset board
-            self.update_board(move.start, piece)
-            self.update_board(square_1, 0)
-
-        return next_state
-
-    @property
-    def winner(self) -> int | None:
-        """
-        Determine the winner of the game, if any.
-
-        Returns
-        -------
-        {0, 1, -1}, optional
-            0 indicates Black (turn 0) wins. 1 indicates Red (turn 1)
-            wins. -1 indicates a draw, i.e. 40 turns have passed since
-            the last capture. None indicates the game is not over.
-        """
-
-        if self._winner is None:
-            if not self.valid_moves:
-                self._winner = -self.turn+1
-            elif self.plys_since_cap >= 80:
-                self._winner = -1
-        return self._winner
-
-    def is_game_over(self) -> bool:
-        """
-        Determine if the game is over.
-
-        Returns
-        -------
-        bool
-            True if the game is over, False otherwise.
-        """
-        return self.winner is not None
-
-    @property
-    def reward(self) -> tuple[float, float]:
-        """
-        Return a player-based reward based on outcome of the game.
-
-        Differs from the `score` attribute as the reward is only
-        calculated at the end of the game.
-
-        Returns
-        -------
-        tuple of float
-            Players receive 1 point for a win and 0 for a loss. Each
-            receive 0.5 for a draw.
-
-        Raises
-        ------
-        AttributeError
-            Exception is raised if this attribute is referenced before
-            the end of the game.
-        """
-
-        if self.winner == 0:
-            return (1.0, 0.0)
-        if self.winner == 1:
-            return (0.0, 1.0)
-        if self.winner == -1:
-            return (0.5, 0.5)
-        raise AttributeError(
-            'Reward attribute referenced before the game is over'
-            )
-
-    def hash_update(self, square: tuple[int, int]) -> None:
+    def _hash_update(self, square: tuple[int, int]) -> None:
         """
         Update hash with piece at given square.
 
         Method should be called before a piece is removed from the
         square and after a piece is added to the square.
-        See `update_board` method.
+        See `_update_board` method.
         """
 
         piece = self.board[square]
         if piece != 0:
             self._hash_value ^= self._hash_key[square][piece]
 
-    def hash_board(self) -> None:
+    def _hash_board(self) -> None:
         """
         Calculate hash of current board state.
 
         Hashes are typically set iteratively when pieces are added and
-        removed according to the `hash_update` method. However, the hash
+        removed according to the `_hash_update` method. However, the hash
         can be calculated from scratch with this method.
         """
 
         self._hash_value = 0
         for square in self._SQUARES:
-            self.hash_update(square)
-
-    def __hash__(self) -> int:
-        return self._hash_value
+            self._hash_update(square)

@@ -28,6 +28,9 @@ Checkers notation and orientation:
 
 from __future__ import annotations
 import random
+from multiprocessing import Process, Pipe
+from multiprocessing.connection import PipeConnection
+from typing import Any, NamedTuple, Literal
 import numpy as np
 from numpy.typing import NDArray
 import pyplayergames as ppg
@@ -58,7 +61,7 @@ def coord_sum(square: tuple[int, int], d: tuple[int, int]) -> tuple[int, int]:
     return (square[0] + d[0], square[1] + d[1])
 
 
-class Move:
+class Move(ppg.MoveType):
     """
     Checkers `Move` class.
 
@@ -73,6 +76,12 @@ class Move:
         row/column will increase or decrease.
     capt : bool
         True if the move is a capture, False for a simple move.
+
+    Attributes
+    ----------
+    start : tuple of int
+    d : tuple of int
+    capt : bool
 
     Notes
     -----
@@ -103,15 +112,14 @@ class Move:
             simple move or x for a capture.
         """
 
-        start_num = ppg.checkers.coord_to_num(self.start)
-        end = ppg.checkers.coord_sum(self.start, self.d)
-        end_num = ppg.checkers.coord_to_num(end)
+        start_num = coord_to_num(self.start)
+        end_num = coord_to_num(coord_sum(self.start, self.d))
         if self.capt:
             return f'{start_num}x{end_num}'
         return f'{start_num}-{end_num}'
 
 
-class Gamestate:
+class Gamestate(ppg.GamestateType):
     """
     Checkers `Gamestate` class.
 
@@ -149,7 +157,6 @@ class Gamestate:
     board : `numpy` array
     turn : {0, 1}
     plys_to_draw : int
-    valid_moves : list of `Move` instances
     score : tuple of float
     reward : tuple of float
     winner : int
@@ -172,7 +179,7 @@ class Gamestate:
         -1: ((-1, -1), (-1, 1)),
         2:  ((-1, -1), (-1, 1), (1, -1), (1, 1)),
         -2: ((-1, -1), (-1, 1), (1, -1), (1, 1))
-        }
+    }
 
     _PIECE_TEAMS: dict[int, int] = {1: 0, 2: 0, -1: 1, -2: 1}
 
@@ -185,12 +192,12 @@ class Gamestate:
         (5, 0), (5, 2), (5, 4), (5, 6),
         (6, 1), (6, 3), (6, 5), (6, 7),
         (7, 0), (7, 2), (7, 4), (7, 6)
-        )
+    )
 
     def __init__(
         self,
-        parent: ppg.checkers.Gamestate | None = None,
-        move: ppg.checkers.Move | None = None,
+        parent: Gamestate | None = None,
+        move: Move | None = None,
         board: NDArray[np.int_] | None = None,
         turn: int = 0,
         plys_to_draw: int = 0,
@@ -200,11 +207,10 @@ class Gamestate:
         self.board: NDArray[np.int_]
         self._turn: int
         self.plys_to_draw: int
-        self._valid_moves: list[ppg.checkers.Move] = []
+        self._valid_moves: list[Move] = []
         self.hash_key: dict[tuple[int, int], dict[int, int]]
         self._hash_value: int
-        self.hash_count: dict[int, tuple[list[ppg.checkers.Gamestate],
-                                         list[ppg.checkers.Gamestate]]]
+        self.hash_count: dict[int, tuple[list[Gamestate], list[Gamestate]]]
         self._score: tuple[float, float] | None = None
         self._reward: tuple[float, float] | None = None
         self._winner: int | None = None
@@ -252,8 +258,8 @@ class Gamestate:
         if move is not None and move.capt:
             self.plys_to_draw = 0
             piece = self.board[move.start]
-            square_1 = ppg.checkers.coord_sum(move.start, move.d)
-            square_2 = ppg.checkers.coord_sum(square_1, move.d)
+            square_1 = coord_sum(move.start, move.d)
+            square_2 = coord_sum(square_1, move.d)
             self._update_board(move.start, 0)
             self._update_board(square_1, 0)
 
@@ -281,7 +287,7 @@ class Gamestate:
             self._turn = -self.turn + 1
             piece = self.board[move.start]
 
-            square_1 = ppg.checkers.coord_sum(move.start, move.d)
+            square_1 = coord_sum(move.start, move.d)
             self._update_board(move.start, 0)
 
             # Test for man becoming a king
@@ -309,83 +315,7 @@ class Gamestate:
                 self.hash_count = {self._hash_value: ([], [self])}
 
 
-    # Interface Methods
-
-    def get_next(self, move: ppg.checkers.Move) -> ppg.checkers.Gamestate:
-        """
-        Generate the next `Gamestate` according to the provided move.
-
-        Parameters
-        ----------
-        move : Move instance
-            Assumed to be from `valid_moves` attribute.
-
-        Returns
-        -------
-        Gamestate instance
-            A new Gamestate instance that reflects the changes from the
-            given move.
-        """
-        return ppg.checkers.Gamestate(parent=self, move=move)
-
-    def is_game_over(self) -> bool:
-        """
-        Determine if the game is over.
-
-        Returns
-        -------
-        bool
-            True if the game is over, False otherwise.
-        """
-        return self.winner is not None
-
-    def __hash__(self) -> int:
-        return self._hash_value
-
-    def piece_moves(
-        self,
-        square: tuple[int, int]
-        ) -> tuple[list[ppg.checkers.Move], list[ppg.checkers.Move]]:
-        """
-        Generate possible `Move` instances from an individual square.
-
-        Tests both simple moves and captures. `Move` instances generated
-        are not necessarily valid; for example, no simple moves are
-        valid if there are captures available.
-
-        Parameters
-        ----------
-        square : tuple of int
-            The square on the board to generate moves from.
-
-        Returns
-        -------
-        move_list : list of Move instances
-            List of simple moves.
-        capt_list : list of Move instances
-            List of captures.
-        """
-
-        move_list = []
-        capt_list = []
-        piece = self.board[square]
-        if piece in self._TEAM_PIECES[self.turn]:
-            for d in self._PIECE_DIRS[piece]:
-                try:
-                    square_1 = ppg.checkers.coord_sum(square, d)
-                    if self.board[square_1] == 0:
-                        move_list.append(ppg.checkers.Move(square, d, False))
-                        continue
-                    square_2 = ppg.checkers.coord_sum(square_1, d)
-                    if (self.board[square_2] == 0
-                        and (self.board[square_1]
-                             not in self._TEAM_PIECES[self.turn])):
-                        capt_list.append(ppg.checkers.Move(square, d, True))
-                except IndexError:
-                    continue
-        return move_list, capt_list
-
-    # Properties
+    # Interface
 
     @property
     def turn(self) -> int:
@@ -400,26 +330,9 @@ class Gamestate:
 
         return self._turn
 
-    @turn.setter
-    def turn(self, new_turn: int) -> None:
+    def get_moves(self) -> tuple[ppg.MoveType, ...]:
         """
-        Set turn attribute and reset turn dependent attributes.
-
-        Turn attribute should not be set directly, but can be useful
-        for testing.
-        """
-
-        if new_turn != self._turn:
-            self._turn = new_turn
-            self._valid_moves = []
-            self._score = None
-            self._reward = None
-            self._winner = None
-
-    @property
-    def valid_moves(self) -> list[ppg.checkers.Move]:
-        """
-        A list of all valid moves in the current state.
+        Return a list of all valid moves in the current state.
         """
 
         if not self._valid_moves:
@@ -435,89 +348,39 @@ class Gamestate:
                 self._valid_moves = move_list
             else:
                 self._valid_moves = capt_list
-        return self._valid_moves
+        return tuple(self._valid_moves)
 
-    @valid_moves.setter
-    def valid_moves(self, new_valid_moves: list[ppg.checkers.Move]) -> None:
+    def get_next(self, move: ppg.MoveType) -> Gamestate:
         """
-        Set the `valid_moves` attribute directly.
+        Generate the next `Gamestate` according to the provided move.
 
-        No checks on validity are made. This functionality is inteded
-        for setting the `valid_moves` attribute of a newly created
-        `Gamestate` instance with an ongoing multiple jump.
-        """
-
-        self._valid_moves = new_valid_moves
-
-    @property
-    def winner(self) -> int | None:
-        """
-        Determine the winner of the game, if any.
-
-        Black wins if Red has no valid moves on their turn and vice
-        versa. A draw occurs when either 40 turns have passed since the
-        last capture or advancement of a man, or the same position has
-        occured 3 times in the game.
+        Parameters
+        ----------
+        move : Move instance
+            Assumed to be from `get_moves` method.
 
         Returns
         -------
-        {0, 1, -1}, optional
-            0 indicates Black wins. 1 indicates Red wins. -1 indicates a
-            draw. None indicates the game is not over.
+        Gamestate instance
+            A new Gamestate instance that reflects the changes from the
+            given move.
         """
+        if not isinstance(move, Move):
+            raise TypeError
+        return Gamestate(parent=self, move=move)
 
-        if self._winner is None:
-            if not self.valid_moves:
-                self._winner = -self.turn + 1
-            elif self.plys_to_draw >= 80:
-                self._winner = -1
-            else:
-                try:
-                    match_list = self.hash_count[self._hash_value][self._turn]
-                    if len(match_list) >= 3:
-                        matches: int = 0
-                        for gamestate in match_list[:-1]:
-                            if np.array_equal(self.board, gamestate.board):
-                                matches += 1
-                        if matches >= 2:
-                            self._winner = -1
-                except KeyError:
-                    pass
-        return self._winner
-
-    @property
-    def reward(self) -> tuple[float, float]:
+    def is_game_over(self) -> bool:
         """
-        Return a player-based reward based on outcome of the game.
-
-        Differs from the `score` attribute as the reward is only
-        calculated at the end of the game.
+        Determine if the game is over.
 
         Returns
         -------
-        tuple of float
-            Players receive 1 point for a win and 0 for a loss. Each
-            receive 0.5 for a draw.
-
-        Raises
-        ------
-        AttributeError
-            Exception is raised if this attribute is referenced before
-            the end of the game.
+        bool
+            True if the game is over, False otherwise.
         """
+        return self.winner is not None
 
-        if self.winner == 0:
-            return (1.0, 0.0)
-        if self.winner == 1:
-            return (0.0, 1.0)
-        if self.winner == -1:
-            return (0.5, 0.5)
-        raise AttributeError(
-            'Reward attribute referenced before the game is over'
-            )
-
-    @property
-    def score(self) -> tuple[float, float]:
+    def get_score(self) -> tuple[float, float]:
         """
         Score the current position heuristically.
 
@@ -575,6 +438,124 @@ class Gamestate:
             self._score = (black_score, -black_score)
         return self._score
 
+    def get_reward(self) -> tuple[float, float]:
+        """
+        Return a player-based reward based on outcome of the game.
+
+        Differs from the `score` attribute as the reward is only
+        calculated at the end of the game.
+
+        Returns
+        -------
+        tuple of float
+            Players receive 1 point for a win and 0 for a loss. Each
+            receive 0.5 for a draw.
+
+        Raises
+        ------
+        AttributeError
+            Exception is raised if this attribute is referenced before
+            the end of the game.
+        """
+
+        if self.winner == 0:
+            return (1.0, 0.0)
+        if self.winner == 1:
+            return (0.0, 1.0)
+        if self.winner == -1:
+            return (0.5, 0.5)
+        raise AttributeError(
+            'Reward attribute referenced before the game is over'
+            )
+
+    def __hash__(self) -> int:
+        return self._hash_value
+
+    # Public methods and properties
+
+    def piece_moves(
+        self,
+        square: tuple[int, int]
+        ) -> tuple[list[Move], list[Move]]:
+        """
+        Generate possible `Move` instances from an individual square.
+
+        Tests both simple moves and captures. `Move` instances generated
+        are not necessarily valid; for example, no simple moves are
+        valid if there are captures available.
+
+        Parameters
+        ----------
+        square : tuple of int
+            The square on the board to generate moves from.
+
+        Returns
+        -------
+        move_list : list of Move instances
+            List of simple moves.
+        capt_list : list of Move instances
+            List of captures.
+        """
+
+        move_list = []
+        capt_list = []
+        piece = self.board[square]
+        if piece in self._TEAM_PIECES[self.turn]:
+            for d in self._PIECE_DIRS[piece]:
+                try:
+                    square_1 = coord_sum(square, d)
+                    if square_1[0] < 0 or square_1[1] < 0:
+                        continue
+                    if self.board[square_1] == 0:
+                        move_list.append(Move(square, d, False))
+                        continue
+                    square_2 = coord_sum(square_1, d)
+                    if square_2[0] < 0 or square_2[1] < 0:
+                        continue
+                    if (self.board[square_2] == 0
+                        and (self.board[square_1]
+                             not in self._TEAM_PIECES[self.turn])):
+                        capt_list.append(Move(square, d, True))
+                except IndexError:
+                    continue
+        return move_list, capt_list
+
+    @property
+    def winner(self) -> int | None:
+        """
+        Determine the winner of the game, if any.
+
+        Black wins if Red has no valid moves on their turn and vice
+        versa. A draw occurs when either 40 turns have passed since the
+        last capture or advancement of a man, or the same position has
+        occured 3 times in the game.
+
+        Returns
+        -------
+        {0, 1, -1}, optional
+            0 indicates Black wins. 1 indicates Red wins. -1 indicates a
+            draw. None indicates the game is not over.
+        """
+
+        if self._winner is None:
+            if not self.get_moves():
+                self._winner = -self.turn + 1
+            elif self.plys_to_draw >= 80:
+                self._winner = -1
+            else:
+                try:
+                    match_list = self.hash_count[self._hash_value][self._turn]
+                    if len(match_list) >= 3:
+                        matches: int = 0
+                        for gamestate in match_list[:-1]:
+                            if np.array_equal(self.board, gamestate.board):
+                                matches += 1
+                        if matches >= 2:
+                            self._winner = -1
+                except KeyError:
+                    pass
+        return self._winner
+
     # Private Methods
 
     def _update_board(self, square: tuple[int, int], piece: int) -> None:
@@ -618,3 +599,364 @@ class Gamestate:
         self._hash_value = 0
         for square in self._SQUARES:
             self._hash_update(square)
+
+
+class Match(ppg.MatchType):
+    """
+    Checkers `Match` class.
+
+    Collects methods and classes for playing a match of checkers.
+    """
+
+    # Data structures passed through Pipe
+
+    class _ToAgent(NamedTuple):
+        """
+        Custom data structure sent to the agent process
+        """
+
+        gamestate: Gamestate | None
+        swap: bool
+        reset: bool = False
+        close: bool = False
+
+    class _ToMatch(NamedTuple):
+        """
+        Custom data structure sent from the agent process to the match.
+        """
+
+        gamestate: Gamestate
+        manual: bool = False
+
+    def __init__(self) -> None:
+
+        # Parameter attributes
+        self._agents: tuple[ppg.AgentType | None, ...]
+        self._names: list[str]
+        self._count: int
+        self._alternate: bool
+        self._opening_moves: list[list[Move]]
+        self._opening_remove: list[list[tuple[int, int]]]
+        self._finished: int
+        self._result: tuple[float, ...]
+
+        # `GUI`` instance
+        self._gui: ppg.checkers.GUI
+
+        # Utility attributes
+        self._pipe: PipeConnection
+        self._agent_proc: Process
+        self._manual: bool
+        self._ignore: bool
+        self._swap: bool
+
+    @classmethod
+    def _get_agent_moves(
+        cls,
+        agents: tuple[ppg.AgentType | None, ppg.AgentType | None],
+        pipe: PipeConnection
+    ) -> None:
+        """
+        Function target for the agent process.
+
+        Sources the moves from agents in a separate process so that the
+        GUI remains responsive.
+
+        Parameters
+        ----------
+        agents : tuple of AgentType or None, AgentType or None
+        """
+
+        while True:
+            assert isinstance(data := pipe.recv(), cls._ToAgent)
+            if data.close:
+                pipe.close()
+                return
+            if data.reset:
+                for agent in agents:
+                    if agent is not None:
+                        agent.reset()
+
+            assert isinstance(data.gamestate, Gamestate)
+            if not data.gamestate.is_game_over():
+                turn_agent = (agents[data.gamestate.turn] if not data.swap
+                              else agents[-data.gamestate.turn + 1])
+                if turn_agent is None:
+                    # Move sourced manually
+                    pipe.send(cls._ToMatch(data.gamestate, True))
+                else:
+                    move = turn_agent.get_move(data.gamestate)
+                    pipe.send(cls._ToMatch(data.gamestate.get_next(move)))
+
+    def run(self,
+            agents: tuple[ppg.AgentType | None, ...],
+            count: int = 1,
+            alternate: bool = True,
+            opening: Literal['PAYG', 'TwoMove', 'ThreeMove',
+                             'ElevenMan', 'ElevenManTwoMove'] = 'PAYG',
+            **kwargs: Any
+        ) -> tuple[float, ...]:
+        """
+        Run the match with the specified agents and parameters.
+
+        Parameters
+        ----------
+        agents : tuple of AgentType or None
+            The AgentType instances to play the game. Only uses first
+            two instances in the tuple.
+        count : int
+            Number of games to play.
+        alternate : bool
+            Whether to switch sides between games.
+        opening : str
+            See `opening_handler` for opening documentation.
+        kwargs : Any
+            For protocol matching; any other keywords are unused.
+
+        Returns
+        -------
+        tuple of float
+            First index is the total reward for the first agent, second
+            index is the total reward for the second.
+        """
+
+        # Parameter attributes
+        self._agents = agents
+        self._names = []
+        for index, agent in enumerate(agents):
+            self._names.append(agent.name if agent is not None
+                               else f'Manual Player {index+1}')
+        self._swap = False
+        self._count = count
+        self._alternate = alternate
+        self._finished = 0
+        self._result = (0.0, 0.0)
+
+        self._opening_handler(alternate, opening)
+
+        # Multiprocessing
+        self._pipe, agent_pipe = Pipe()
+        self._agent_proc = Process(
+            target=self._get_agent_moves,
+            args=(agents, agent_pipe)
+        )
+        self._agent_proc.start()
+        self._gui = ppg.checkers.GUI()
+
+        while self._finished < self._count:
+            self._manual = False
+            self._ignore = False
+            self._swap = alternate and (self._finished % 2 == 1)
+            gamestate = self._new_game()
+            self._send_to_gui(gamestate)
+            game_result = self._run_game(gamestate)
+
+            if game_result is None:
+                break
+
+            # Sum reward
+            if not self._swap:
+                self._result = (self._result[0] + game_result[0],
+                                self._result[1] + game_result[1])
+            else:
+                self._result = (self._result[0] + game_result[1],
+                                self._result[1] + game_result[0])
+
+            self._finished += 1
+        self._clean_up()
+        return self._result
+
+    def _run_game(
+        self,
+        initial_gamestate: Gamestate
+    ) -> tuple[float, float] | None:
+        """
+        Run the given gamestate using already set parameter attributes.
+
+        Called by the `run` method.
+
+        Parameters
+        ----------
+        initial_gamestate : Gamestate
+
+        Returns
+        -------
+        tuple of float
+            The reward of the end of the game; first index is black
+            pieces, second index is red.
+        """
+
+        gamestate = initial_gamestate
+        while not gamestate.is_game_over():
+            # Handle flags
+            # Window closed
+            if self._gui.terminated_flag:
+                return None
+            # Restart Game
+            if self._gui.restart_game_flag:
+                self._ignore = not self._manual
+                self._manual = False
+                gamestate = self._new_game()
+                self._send_to_gui(gamestate)
+            # Pause
+            if self._gui.pause_flag:
+                pass
+
+            # Get Moves
+            # Manual move
+            elif self._manual:
+                move = self._gui.get_manual_input(gamestate.get_moves())
+                if move is not None:
+                    self._manual = False
+                    gamestate = gamestate.get_next(move)
+                    self._send_to_gui(gamestate)
+                    self._pipe.send(self._ToAgent(gamestate, self._swap))
+            # Agent move
+            elif self._pipe.poll():
+                data = self._pipe.recv()
+                assert isinstance(data, self._ToMatch)
+                if self._ignore:
+                    self._ignore = False
+                elif data.manual:
+                    self._manual = True
+                else:
+                    gamestate = data.gamestate
+                    self._send_to_gui(gamestate)
+                    self._pipe.send(self._ToAgent(gamestate, self._swap))
+
+            self._gui.window.update()
+        return gamestate.get_reward()
+
+    def _opening_handler(
+        self,
+        alternate: bool,
+        opening:  Literal['PAYG', 'TwoMove', 'ThreeMove',
+                          'ElevenMan', 'ElevenManTwoMove']
+        ) -> None:
+        """
+        Sets up opening draws for the entire match.
+
+        See the pyplayergames\\games\\checkers\\__init__.py module for
+        list of opening draws.
+
+        Parameters
+        ----------
+        alternate : bool
+            Whether or not the match alternates turns; if so, the same
+            opening is played once for each side.
+        opening : str
+            'PAYG' uses the default board with no moves.
+            'TwoMove' is two-move restriction.
+            'ThreeMove' is three-move restriction.
+            'ElevenMan' is eleven man ballot.
+            'ElevenManTwoMove' is eleven man ballot with two move
+                restriction.
+
+        Raises
+        ------
+        ValueError
+            If the draw is not valid.
+        """
+
+        # Openings are repeated if the match alternates.
+        draw_size: int
+        if alternate:
+            draw_size = self._count // 2 + 1
+        else:
+            draw_size = self._count
+
+        source: list[Any]
+        self._opening_moves = []
+        self._opening_remove = []
+        match opening:
+            case 'TwoMove':
+                source = ppg.checkers.TWO_MOVE_RESTRICTION
+            case 'ThreeMove':
+                source = ppg.checkers.THREE_MOVE_RESTRICTION
+            case 'ElevenMan':
+                source = ppg.checkers.ELEVEN_MAN
+            case 'ElevenManTwoMove':
+                source = ppg.checkers.ELEVEN_MAN_TWO_MOVE
+            case _:
+                return
+
+        draws = random.sample(source, draw_size)
+        for draw in draws:
+            moves_list: list[Move] = []
+            remove_list: list[tuple[int, int]] = []
+            for component in draw:
+                if len(component) == 3:
+                    moves_list.append(Move(*component))
+                elif len(component) == 2:
+                    remove_list.append(component)
+                else:
+                    raise ValueError('Incompatible opening draw.')
+            self._opening_moves.append(moves_list)
+            self._opening_remove.append(remove_list)
+
+    def _new_game(self) -> Gamestate:
+        """
+        Creates a new `Gamestate` instance with the drawn opening.
+
+        See the `_opening_handler` method for opening details.
+
+        Returns
+        -------
+        Gamestate
+        """
+
+        if not self._opening_moves or not self._opening_remove:
+            gamestate = Gamestate()
+        else:
+            index = (self._finished if not self._alternate
+                     else self._finished // 2)
+            board = np.asarray(
+                [[0,  1,  0,  1,  0,  1,  0,  1],
+                 [1,  0,  1,  0,  1,  0,  1,  0],
+                 [0,  1,  0,  1,  0,  1,  0,  1],
+                 [0,  0,  0,  0,  0,  0,  0,  0],
+                 [0,  0,  0,  0,  0,  0,  0,  0],
+                 [-1, 0, -1,  0, -1,  0, -1,  0],
+                 [0, -1,  0, -1,  0, -1,  0, -1],
+                 [-1, 0, -1,  0, -1,  0, -1,  0]]
+            )
+            for square in self._opening_remove[index]:
+                board[square] = 0
+            gamestate = Gamestate(board=board)
+            for move in self._opening_moves[index]:
+                gamestate = gamestate.get_next(move)
+        self._pipe.send(self._ToAgent(gamestate, self._swap, reset=True))
+        self._gui.reset()
+        return gamestate
+
+    def _send_to_gui(self, gamestate: Gamestate) -> None:
+        """
+        Updates the GUI with the latest gamestate.
+
+        Parameters
+        ----------
+        gamestate : Gamestate
+        """
+
+        self._gui.match_text.set(
+            f'Match {self._finished+1} of {self._count}'
+        )
+        player_1 = 0 if not self._swap else 1
+        player_2 = -player_1 + 1
+        self._gui.player_1_text.set(
+            f'{self._names[player_1]} (BLACK): {self._result[player_1]}'
+        )
+        self._gui.player_2_text.set(
+            f'{self._names[player_2]} (RED): {self._result[player_2]}'
+        )
+        self._gui.update_state(gamestate)
+
+    def _clean_up(self) -> None:
+        """
+        Clean up GUI and agent process.
+        """
+
+        self._pipe.send(self._ToAgent(None, self._swap, close=True))
+        self._gui.window.destroy()
+        self._agent_proc.join()
+        self._pipe.close()

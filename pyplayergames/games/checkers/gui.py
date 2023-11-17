@@ -1,354 +1,505 @@
-"""Pygame graphical user interface for the checkers game.
+"""
+Checkers GUI
+============
 
-Classes:
-    CheckersGUI: An instance of the CheckersGUI class defines the
-        the window, graphics, and runs the Checkers game. It has an
-        associated CheckersGamestate object that handles the logic, and
-        selects CheckersMove instances based on user input.
+This module contains the graphical interface for the checkers game. The
+`GUI` class handles automatically played games as well as user input for
+manually played games.
+
 """
 
-import pygame
-from pygame.locals import *
-from pyplayergames.games.checkers.game import CheckersGamestate
+from __future__ import annotations
+from typing import Any
+import os
+import tkinter as tk
+
+# FIXME: temporary import fix
+import sys
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..\\..\\..')))
+
+import pyplayergames as ppg
 
 
-class CheckersGUI():
-    """The pygame graphical interface for the checkers game."""
+class GUI:
+    """
+    Graphical user interface for checkers.
 
-    # RGB(A) colors
-    LIGHT = (255, 190, 125)
-    DARK = (255, 127, 63)
-    RED = (255, 0, 0)
-    BLACK = (0, 0, 0)
-    GOLD = (255, 205, 0)
-    YELLOW = (255, 255, 0)
-    GRAY = (127, 127, 127)
-    SEL = (0, 255, 255, 100)
-    VALID = (127, 255, 0, 127)
+    Written using the `tkinter` package. Displays checkerboard that
+    accepts move input (on the turn of a manual player) and has a basic
+    menu at the bottom.
 
-    # Object sizes
-    SQ_PIX = 80
-    WINDOW_SIZE = (8 * SQ_PIX, 9 * SQ_PIX)
-    NEW_BUTTON = (int(5.5 * SQ_PIX), int(8.25 * SQ_PIX),
-                  2 * SQ_PIX, SQ_PIX // 2)
-    TEXT_SIZE = SQ_PIX // 3
+    Attributes
+    ----------
+    window : Tk
+    terminated_flag : bool
+    restart_game_flag : bool
+    restart_match_flag : bool
 
-    def __init__(self, player1=None,
-                 player2=None,
-                 a_time=200,
-                 framerate=30):
-        """Initialize pygame, the window, widgets, agents and the game.
+    Notes
+    -----
+    The GUI class does not generate moves or make calls to any agent
+    instances. Outside calls to the `update_board_and_text` method are
+    expected with new checkers `Gamestate` instances.
 
-        Keyword Args:
-            player1: The agent instance for black. Default value is None.
-                If the input is None, the gui expects manual input from
-                the user.
-            player2: Same as player1, but for red.
-            a_time: The number of milliseconds the gui spends animating
-                piece moves. A value of 0 disables animation.
-            framerate: The number of frames per second.
+    Intended to be run by an instance of the checkers `Match` class
+
+    """
+
+    # Hex color codes
+    _LIGHT_COL: str = '#FFBE7D'
+    _DARK_COL: str = '#FF7F3F'
+    _SEL_COL: str = '#00CCFF'
+    _VALID_COL: str = '#00FFFF'
+    _MENU_COL: str = '#B3B3B3'
+    _TURN_COL: str = '#0088CC'
+
+    # Space and sizing settings
+    _SQUARE_PIX: int = 80
+    _PIECE_PAD: int = 5
+    _KING_PAD: int = 20
+    _MENU_HEIGHT: int = 200
+
+    # Button settings
+    _button_options: dict[str, Any] = {
+        'bg': 'yellow',
+        'activebackground': 'yellow',
+        'font': ('', 20),
+        'width': 3,
+        'height': 1,
+        'border': 4
+    }
+    _button_padding: dict[str, Any] = {
+        'padx': 0,
+        'pady': 20
+    }
+    _text_font: tuple[str, int] = ('Helvetica', 18)
+
+    def __init__(self) -> None:
+        # Generate window
+        self.window = tk.Tk()
+        self.window.configure(bg=self._MENU_COL)
+        self.window.geometry('640x840')
+        self.window.title('Checkers')
+        self.window.resizable(False, False)
+        icon_path = os.path.join(os.path.dirname(__file__), './icon.png')
+        self.window.iconphoto(
+            False,
+            tk.PhotoImage(file=icon_path)
+        )
+        # See the `_on_exit` method.
+        self.window.protocol('WM_DELETE_WINDOW', self._on_exit)
+        self.terminated_flag: bool = False
+
+        # Attributes related to manual move input
+        self._manual: bool = False
+        self._moves: tuple[ppg.MoveType, ...] = ()
+        self._valid: list[tuple[int, int]] = []
+        self._selected: tuple[int, int] | None = None
+        self._manual_move: ppg.MoveType | None = None
+
+        # Draw board.
+        self._board_ref: dict[int, tuple[int, int]] = {}
+        self._piece_ref: dict[int, tuple[int, int]] = {}
+        self._square_ref: dict[tuple[int, int], int] = {}
+        self._board_c = tk.Canvas(
+            self.window,
+            width=8*self._SQUARE_PIX,
+            height=8*self._SQUARE_PIX
+        )
+        self._board_c.pack()
+        for row in range(8):
+            for col in range(8):
+                if row % 2 == col % 2:
+                    color = self._LIGHT_COL
+                else:
+                    color = self._DARK_COL
+                square_id = self._board_c.create_rectangle(
+                    col*self._SQUARE_PIX,
+                    row*self._SQUARE_PIX,
+                    (col+1)*self._SQUARE_PIX,
+                    (row+1)*self._SQUARE_PIX,
+                    fill=color,
+                    tags='square'
+                )
+                self._board_ref[square_id] = (row, col)
+                self._square_ref[(row, col)] = square_id
+        self._board_c.tag_bind('square', '<ButtonPress-1>', self._clicked)
+        self._board_c.tag_bind('piece', '<ButtonPress-1>', self._clicked)
+
+        # Buttons
+        self._menu_frame = tk.Frame(
+            self.window,
+            width=8*self._SQUARE_PIX,
+            height=self._MENU_HEIGHT,
+            bg=self._MENU_COL
+        )
+        self._menu_frame.pack()
+        self._menu_frame.columnconfigure(0, minsize=4*self._SQUARE_PIX)
+        self._menu_frame.columnconfigure((2, 3), minsize=1.5*self._SQUARE_PIX)
+        self._menu_frame.columnconfigure((1, 4), minsize=0.5*self._SQUARE_PIX)
+
+        self._restart_game_button = tk.Button(
+            self._menu_frame,
+            text='\u23EE',
+            command=self._restart_game,
+            relief=tk.RAISED,
+            **self._button_options
+        )
+        self._restart_game_button.grid(
+            row=0, column=2, **self._button_padding
+        )
+        self.restart_game_flag: bool = False
+
+        self._play_pause_button = tk.Button(
+            self._menu_frame,
+            text='\u23EF',
+            command=self._play_pause,
+            relief=tk.RAISED,
+            **self._button_options
+        )
+        self._play_pause_button.grid(
+            row=0, column=3, **self._button_padding
+        )
+        self.pause_flag: bool = False
+
+        self.match_text = tk.StringVar(self._menu_frame, '')
+        tk.Label(
+            self._menu_frame,
+            font=self._text_font,
+            bg=self._MENU_COL,
+            textvariable=self.match_text
+        ).grid(
+            row=0, column=0, columnspan=2, sticky='W', padx=40
+        )
+
+        self.player_1_text = tk.StringVar(self._menu_frame, '')
+        self._player_1_label = tk.Label(
+            self._menu_frame,
+            font=self._text_font,
+            bg=self._MENU_COL,
+            textvariable=self.player_1_text
+        )
+        self._player_1_label.grid(
+            row=1, column=0, columnspan=5, sticky='W', padx=40
+        )
+
+        self.player_2_text = tk.StringVar(self._menu_frame, '')
+        self._player_2_label = tk.Label(
+            self._menu_frame,
+            font=self._text_font,
+            bg=self._MENU_COL,
+            textvariable=self.player_2_text
+        )
+        self._player_2_label.grid(
+            row=2, column=0, columnspan=5, sticky='W', padx=40
+        )
+
+    # Interface
+
+    def update_state(self, gamestate: ppg.checkers.Gamestate) -> None:
         """
-        # Initialize pygame
-        pygame.init()
-        self.window = pygame.display.set_mode(self.WINDOW_SIZE)
-        pygame.display.set_caption('Checkers')
-        self.clock = pygame.time.Clock()
-        self.framerate = framerate
+        Updates the GUI to the new gamestate.
 
-        # Initialize menu widgets
-        self.button_rect = pygame.Rect(self.NEW_BUTTON)
-        self.button_text = pygame.font.Font(size=self.TEXT_SIZE)
-        self.msg_text = pygame.font.Font(size=self.TEXT_SIZE)
-
-        # Animation attributes
-        self.animating = False
-        self.a_time = a_time
-        if a_time != 0:
-            self.a_frames = framerate * a_time / 1000
-            self.a_inc = self.SQ_PIX / self.a_frames
-            self.a_count = 0
-            self.a_move = None
-            self.a_gamestate = None
-            self.a_piece = 0
-        self.wait = 300
-
-        # Player attributes
-        self.player1 = player1
-        self.player2 = player2
-
-        # Start game
-        self.reset()
-        self.draw_background()
-        self.main_loop()
-
-    def reset(self):
-        """Reset the game and window to the initial state."""
-        self.last_move_time = pygame.time.get_ticks()
-        self.move_tracker = []
-        self.gamestate = CheckersGamestate()
-        if self.player1 is not None:
-            self.player1.reset()
-        if self.player2 is not None:
-            self.player2.reset()
-        self.msg = "Black's move"
-
-    def draw_background(self):
-        """Draw the board on the background surface."""
-        self.background = pygame.Surface(self.window.get_size())
-        self.background.fill(self.GRAY)
-        for col in range(8):
-            for row in range(8):
-                color = self.LIGHT if col % 2 == row % 2 else self.DARK
-                pygame.draw.rect(self.background, color,
-                                 (col * self.SQ_PIX,
-                                  row * self.SQ_PIX,
-                                  self.SQ_PIX,
-                                  self.SQ_PIX))
-
-    def draw_piece(self, piece, center):
-        """Draw individual pieces onto the window surface."""
-        match piece:
-            case 1:
-                pygame.draw.circle(self.window,
-                                   self.BLACK,
-                                   center,
-                                   self.SQ_PIX // 2)
-            case -1:
-                pygame.draw.circle(self.window,
-                                   self.RED,
-                                   center,
-                                   self.SQ_PIX // 2)
-            case 2:
-                pygame.draw.circle(self.window,
-                                   self.BLACK,
-                                   center,
-                                   self.SQ_PIX // 2)
-                pygame.draw.circle(self.window,
-                                   self.GOLD,
-                                   center,
-                                   self.SQ_PIX // 4)
-            case -2:
-                pygame.draw.circle(self.window,
-                                   self.RED,
-                                   center,
-                                   self.SQ_PIX // 2)
-                pygame.draw.circle(self.window,
-                                   self.GOLD,
-                                   center,
-                                   self.SQ_PIX // 4)
-
-    def get_center(self, row, col):
-        """Calculate center of given square."""
-        return (col * self.SQ_PIX + self.SQ_PIX // 2,
-                row * self.SQ_PIX + self.SQ_PIX // 2)
-
-    def draw_gamestate(self, gamestate):
-        """Draw the pieces according to the gamestate attribute.
-
-        Args: The CheckersGamestate instance to draw pieces from.
+        Parameters
+        ----------
+        gamestate : checkers `Gamestate`
+        matches_complete : int
+        matches_total : int
+        agent_name : str
         """
-        for col in range(8):
-            for row in range(8):
-                self.draw_piece(gamestate.board[row][col],
-                                self.get_center(row, col))
 
-    def draw_menu(self):
-        """Draw the new game button and text on the menu."""
-        if self.button_rect.collidepoint(pygame.mouse.get_pos()):
-            pygame.draw.rect(self.window, self.YELLOW, self.NEW_BUTTON)
+        # Remove pieces.
+        self._board_c.delete('piece')
+        self._piece_ref = {}
+
+        # Draw new pieces back.
+        for row in range(8):
+            for col in range(8):
+                match gamestate.board[row][col]:
+                    case 1:
+                        self._draw_piece(row, col, 0)
+                    case 2:
+                        self._draw_piece(row, col, 0, king=True)
+                    case -1:
+                        self._draw_piece(row, col, 1)
+                    case -2:
+                        self._draw_piece(row, col, 1, king=True)
+
+        # Update turn coloring of labels
+        if gamestate.turn == 0:
+            self._player_1_label['fg'] = self._TURN_COL
+            self._player_2_label['fg'] = 'black'
         else:
-            pygame.draw.rect(self.window, self.GOLD, self.NEW_BUTTON)
+            self._player_1_label['fg'] = 'black'
+            self._player_2_label['fg'] = self._TURN_COL
 
-        text_surf = self.button_text.render('New Game', True, self.BLACK)
-        text_rect = text_surf.get_rect(center=self.button_rect.center)
-        self.window.blit(text_surf, text_rect)
 
-        text_surf = self.button_text.render(self.msg, True, self.BLACK)
-        text_rect = text_surf.get_rect(center=(int(1.5 * self.SQ_PIX),
-                                               int(8.5 * self.SQ_PIX)))
-        self.window.blit(text_surf, text_rect)
-
-    def highlight_square(self, row, col, color):
-        """Overlay square with a semi-transparent color.
-
-        Args:
-            row, col: which square to highlight.
-            color: 4 element tuple determing an RGB color and an alpha
-                value for transparency.
+    def get_manual_input(
+        self,
+        moves: tuple[ppg.MoveType, ...]
+    ) -> ppg.MoveType | None:
         """
-        surf = pygame.Surface((self.SQ_PIX, self.SQ_PIX), SRCALPHA)
-        pygame.draw.rect(surf, color, surf.get_rect())
-        self.window.blit(surf, (col * self.SQ_PIX,
-                                row * self.SQ_PIX,
-                                (col + 1) * self.SQ_PIX,
-                                (row + 1) * self.SQ_PIX))
+        Return a user-selected move.
 
-    def draw_overlays(self):
-        """Determine which squares to highlight.
+        Setting the `_manual` attribute to `True` prepares the `GUI` to
+        receive user input. When the user inputs a move, it is saved
+        into the `_manual_move` attribute, then returned next time this
+        method is called.
 
-        Highlights both selected pieces and valid moves from selected
-        piece.
+        Parameters
+        ----------
+        moves : list of MoveType
+            Valid `Move` instances the user can choose from.
+
+        Returns
+        -------
+        MoveType, optional
         """
-        if self.move_tracker:
-            self.highlight_square(*self.move_tracker[-1], self.SEL)
-            for move in self.gamestate.valid_moves:
-                if list(move[:len(self.move_tracker)]) == self.move_tracker:
-                    self.highlight_square(*move[len(self.move_tracker)],
-                                          self.VALID)
 
-    def update(self, move):
-        """Update the gamestate and attributes with provided move.
+        if not self._manual:
+            self._manual = True
+            self._manual_move = None
+            self._moves = moves
+            self._set_valid()
+        if self._manual_move is not None and self._manual:
+            self._manual = False
+            return self._manual_move
+        return None
 
-        move: An instance of the CheckersMove class.
+    def reset(self) -> None:
         """
-        if self.a_time != 0:
-            # Prepare attributes for animation
-            self.a_gamestate = self.gamestate
-            self.animating = True
-            self.a_move = move
-            self.a_elapsed = 0
-            self.a_count = 0
-            self.a_piece = self.a_gamestate.board[move[0]]
+        Reset persistent attributes to their initial values.
+        """
 
-            self.gamestate = self.gamestate.get_next(move)
-            self.move_tracker = []
-            self.a_gamestate.board[move[0]] = 0
+        self._clear_valid()
+        self._manual = False
+        self._moves = ()
+        self._manual_move = None
+        if self._selected is not None:
+            self._board_c.itemconfig(
+                self._square_ref[self._selected],
+                fill=self._DARK_COL
+            )
+            self._selected = None
+
+        self._restart_game_button['relief'] = tk.RAISED
+        self.restart_game_flag = False
+        self._play_pause_button['relief'] = tk.RAISED
+        self.pause_flag = False
+
+    # Private methods
+
+    def _draw_piece(
+        self,
+        row: int,
+        col: int,
+        team: int,
+        king: bool = False
+    ) -> None:
+        """
+        Draw the prescribed piece to the board.
+
+        Parameters
+        ----------
+        row : int
+            The row on the board to draw to.
+        col : int
+            The column on the board to draw to.
+        team : {0, 1}
+            The team of the piece; 0 is for black, 1 is for red.
+        king : bool
+            Whether or not the piece is a king; draws a golden inner
+            circle to signify a king.
+
+        Notes
+        -----
+        The id of the pieces on the `_board_c` Canvas object are saved
+        to the `_piece_ref` attribute for reference to the corresponding
+        rows and columns.
+        """
+
+        self._piece_ref[self._board_c.create_oval(
+            col*self._SQUARE_PIX + self._PIECE_PAD,
+            row*self._SQUARE_PIX + self._PIECE_PAD,
+            (col+1)*self._SQUARE_PIX - self._PIECE_PAD,
+            (row+1)*self._SQUARE_PIX - self._PIECE_PAD,
+            fill='black' if team == 0 else 'red',
+            tags='piece'
+        )] = (row, col)
+        if king:
+            self._piece_ref[self._board_c.create_oval(
+                col*self._SQUARE_PIX + self._KING_PAD,
+                row*self._SQUARE_PIX + self._KING_PAD,
+                (col+1)*self._SQUARE_PIX - self._KING_PAD,
+                (row+1)*self._SQUARE_PIX - self._KING_PAD,
+                fill='gold',
+                tags='piece'
+            )] = (row, col)
+
+    def _clicked(self, event: tk.Event) -> None:
+        """
+        Click handler for manual move input.
+
+        Only enabled when the `_manual` attribute is set to True.
+
+        Parameters
+        ----------
+        event : Tk Event
+        """
+
+        if self._manual and not self.pause_flag:
+            # Find row and column of click.
+            widget_id = event.widget.find_withtag('current')[0]
+            if widget_id in self._piece_ref:
+                square = self._piece_ref[widget_id]
+            else:
+                square = self._board_ref[widget_id]
+            self._set_highlights(square)
+
+    def _restart_game(self) -> None:
+        """
+        Restart game button handler.
+
+        Indicates to external runner that the game should be restarted.
+        Part of this reset is calling the `reset` method or equivalent.
+        """
+
+        self.restart_game_flag = True
+
+    def _play_pause(self) -> None:
+        """
+        Play pause button handler.
+
+        Indicates to the external runner that the game loop should be
+        paused until further notice.
+        """
+
+        if self.pause_flag:
+            self._play_pause_button['relief'] = tk.RAISED
         else:
-            self.gamestate = self.gamestate.get_next(move)
-            self.move_tracker = []
+            self._play_pause_button['relief'] = tk.SUNKEN
+        self.pause_flag = not self.pause_flag
 
-        if self.gamestate.is_game_over():
-            match self.gamestate.winner:
-                case 0:
-                    self.msg = 'Black wins!'
-                case -1:
-                    self.msg = 'Draw'
-                case 1:
-                    self.msg = 'Red wins!'
-        else:
-            match self.gamestate.turn:
-                case 0:
-                    self.msg = "Black's turn"
-                case 1:
-                    self.msg = "Red's turn"
-
-        if self.a_time == 0:
-            self.last_move_time = pygame.time.get_ticks()
-
-    def click_handler(self, event):
-        """Handle user input.
-
-        Args:
-            event: A pygame event object to be handled by this method.
-
-        Returns:
-            A boolean that is True if the user moved and False
-                otherwise.
+    def _set_highlights(self, new_select: tuple[int, int]) -> None:
         """
-        if ((self.gamestate.turn == 0 and self.player1 is None)
-                or (self.gamestate.turn == 1 and self.player2 is None)):
-            row = event.pos[1] // self.SQ_PIX
-            col = event.pos[0] // self.SQ_PIX
-            valid = False
+        Square highlight handler.
 
-            # Click on a valid square.
-            for move in self.gamestate.valid_moves:
-                if (list(move[:len(self.move_tracker)+1])
-                        == self.move_tracker + [(row, col)]):
-                    if len(self.move_tracker) == len(move) - 1:
-                        self.update(move)
-                        return True
-                    else:
-                        if self.move_tracker:
-                            self.msg = 'Jump again!'
-                        self.move_tracker.append((row, col))
-                    valid = True
+        When the `GUI` instance is accepting manual input, valid squares
+        and the currently selected square are highlighted.
+
+        Parameters
+        ----------
+        new_select : tuple of int
+            The (row, col) of the board selected by the user.
+        """
+
+        if new_select in self._valid and self._selected is not None:
+            # Send selected move and reset.
+            self._clear_valid()
+            self._set_move(new_select)
+            self._board_c.itemconfig(
+                self._square_ref[self._selected],
+                fill=self._DARK_COL
+            )
+            self._selected = None
+        elif new_select in self._valid:
+            # Start of move selected. Highlight squares to move to.
+            self._clear_valid()
+            self._set_valid(start=new_select)
+            self._selected = new_select
+            self._board_c.itemconfig(
+                self._square_ref[self._selected],
+                fill=self._SEL_COL
+            )
+        elif self._selected is not None and self._selected != new_select:
+            # Deselect piece.
+            self._board_c.itemconfig(
+                self._square_ref[self._selected],
+                fill=self._DARK_COL
+            )
+            self._selected = None
+            self._clear_valid()
+            self._set_valid()
+
+    def _set_valid(self, start: tuple[int, int] | None = None) -> None:
+        """
+        Highlight squares that are valid to select.
+
+        If there is no `start` argument, this highlights squares that
+        contain pieces that can move. If there is a `start` argument,
+        this highlights squares that the piece at `start` can jump to.
+
+        Parameters
+        ----------
+        start : tuple of int, optional
+        """
+
+        for move in self._moves:
+            assert isinstance(move, ppg.checkers.Move)
+            if start is None:
+                self._valid.append(move.start)
+                self._board_c.itemconfig(
+                    self._square_ref[move.start],
+                    fill=self._VALID_COL
+                )
+            elif move.start == start:
+                end_square = (
+                    ppg.checkers.coord_sum(
+                        ppg.checkers.coord_sum(move.start, move.d),
+                        move.d
+                    ) if move.capt else ppg.checkers.coord_sum(
+                        move.start,
+                        move.d
+                    )
+                )
+                self._valid.append(end_square)
+                self._board_c.itemconfig(
+                    self._square_ref[end_square],
+                    fill=self._VALID_COL
+                )
+
+    def _clear_valid(self):
+        """
+        Clear valid square highlighting.
+        """
+
+        for square in self._valid:
+            self._board_c.itemconfig(
+                self._square_ref[square],
+                fill=self._DARK_COL
+            )
+        self._valid = []
+
+    def _set_move(self, end: tuple[int, int]) -> None:
+        """
+        Convert user input into a checkers `Move` instance.
+
+        Parameters
+        ----------
+        end : tuple of int
+            The square of the end of the move.
+        """
+
+        for move in self._moves:
+            assert isinstance(move, ppg.checkers.Move)
+            square_1 = ppg.checkers.coord_sum(move.start, move.d)
+            if move.start == self._selected and not move.capt:
+                if end == square_1:
+                    self._manual_move = move
+                    break
+            elif move.start == self._selected:
+                square_2 = ppg.checkers.coord_sum(square_1, move.d)
+                if end == square_2:
+                    self._manual_move = move
                     break
 
-            # Click off current move onto another valid square.
-            if not valid:
-                for move in self.gamestate.valid_moves:
-                    if move[0] == (row, col):
-                        self.move_tracker = [(row, col)]
-                        valid = True
-                        break
+    def _on_exit(self) -> None:
+        """
+        Tell client process that the `GUI` needs to be closed.
 
-                # Click off current move onto an invalid square.
-                if not valid:
-                    self.move_tracker = []
+        Indirectly closing the `GUI` window allows for reliant processes
+        to be terminated first.
+        """
 
-        return False
-
-    def get_agent_move(self):
-        """Source move from non-user agents."""
-        if not self.gamestate.is_game_over():
-            if self.gamestate.turn == 0 and self.player1 is not None:
-                move = self.player1.get_move(self.gamestate)
-                self.update(move)
-            elif self.gamestate.turn == 1 and self.player2 is not None:
-                move = self.player2.get_move(self.gamestate)
-                self.update(move)
-
-    def animation(self):
-        """Animates piece being moved."""
-        self.a_count += 1
-        if not self.a_move.jumps:
-            ind = int(self.a_count / self.a_frames)
-            delta = self.a_count % self.a_frames
-        else:
-            ind = int(self.a_count / (2 * self.a_frames))
-            delta = self.a_count % (2 * self.a_frames)
-        if ind >= len(self.a_move) - 1:
-            self.animating = False
-            self.last_move_time = pygame.time.get_ticks()
-            self.draw_piece(self.a_piece,
-                            self.get_center(*self.a_move[-1]))
-        else:
-            start_center = self.get_center(*self.a_move[ind])
-            d = self.a_move.dirs[ind]
-            center = (start_center[0] + d[1] * delta * self.a_inc,
-                      start_center[1] + d[0] * delta * self.a_inc)
-            self.draw_piece(self.a_piece, center)
-
-    def main_loop(self):
-        """Run the graphical interface and detect user input."""
-        run = True
-        while run:
-            self.clock.tick(self.framerate)
-            self.window.blit(self.background, (0, 0))
-
-            if not self.animating or self.a_time == 0:
-                self.draw_overlays()
-                self.draw_gamestate(self.gamestate)
-
-                moved = False
-                for event in pygame.event.get():
-                    if event.type == QUIT:
-                        run = False
-                    elif (event.type == MOUSEBUTTONDOWN
-                          and event.button == BUTTON_LEFT):
-                        if self.button_rect.collidepoint(
-                                pygame.mouse.get_pos()):
-                            self.reset()
-                        else:
-                            moved = self.click_handler(event)
-                elapsed = pygame.time.get_ticks() - self.last_move_time
-                if not moved and elapsed >= self.wait:
-                    self.get_agent_move()
-
-            else:
-                self.draw_gamestate(self.a_gamestate)
-                for event in pygame.event.get():
-                    if event.type == QUIT:
-                        run = False
-                    elif (event.type == MOUSEBUTTONDOWN
-                          and event.button == BUTTON_LEFT):
-                        if self.button_rect.collidepoint(
-                                pygame.mouse.get_pos()):
-                            self.reset()
-                self.animation()
-
-            self.draw_menu()
-            pygame.display.flip()
-
-        pygame.quit()
+        self.terminated_flag = True

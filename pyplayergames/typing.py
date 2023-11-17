@@ -4,7 +4,7 @@ Protocols for interfacing with the `pyplayergames` package.
 # pylint: disable=C0116
 
 from __future__ import annotations
-from typing import Protocol, Self
+from typing import Protocol, Self, Any
 
 
 class MoveType(Protocol):
@@ -69,14 +69,13 @@ class MatchType(Protocol):
     Class structure for a match.
     """
 
-    result: tuple[float, ...]
+    def __init__(self) -> None: ...
 
-    def __init__(self,
-                 agents: tuple[AgentType | None, ...],
-                 **kwargs
-                 ) -> None: ...
-
-    def run(self) -> None: ...
+    def run(
+        self,
+        agents: tuple[ppg.AgentType | None, ...],
+        **kwargs: Any
+    ) -> tuple[float, ...]: ...
 
 class AgentType(Protocol):
     """
@@ -85,7 +84,7 @@ class AgentType(Protocol):
 
     name: str
 
-    def __init__(self, **kwargs) -> None: ...
+    def __init__(self, **kwargs: Any) -> None: ...
 
     def get_move(self, gamestate: GamestateType) -> MoveType: ...
     # Choose the next move.

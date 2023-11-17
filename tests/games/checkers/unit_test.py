@@ -254,8 +254,8 @@ class TestCheckersGamestate():
                                        valid_d_list)),
                              indirect=['gamestate'])
     def test_valid_moves(self, gamestate, squares, ds):
-        assert squares == [move.start for move in gamestate.valid_moves]
-        assert ds == [move.d for move in gamestate.valid_moves]
+        assert squares == [move.start for move in gamestate.get_moves()]
+        assert ds == [move.d for move in gamestate.get_moves()]
 
     next_move_list = [
         ppg.checkers.Move((2, 5), (1, -1), False),
@@ -454,7 +454,7 @@ class TestCheckersGamestate():
                              tuple(zip(gamestate_param, score_list)),
                              indirect=['gamestate'])
     def test_score(self, gamestate, score):
-        assert gamestate.score == score
+        assert gamestate.get_score() == score
 
     winner_list = [
         None,
@@ -516,9 +516,9 @@ class TestCheckersGamestate():
     def test_reward(self, gamestate, reward):
         if reward is None:
             with pytest.raises(AttributeError):
-                gamestate.reward
+                gamestate.get_reward()
         else:
-            assert gamestate.reward == reward
+            assert gamestate.get_reward() == reward
 
     @pytest.fixture()
     def repetition_move_list(self):

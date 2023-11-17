@@ -1,38 +1,51 @@
-"""A simple agent that selects move uniformly randomly."""
+"""
+Agent class whose instances select moves randomly.
+"""
 
-from pyplayergames.agents.template import AgentTemplate
 import random
+import pyplayergames as ppg
 
 
-class RandomAgent(AgentTemplate):
-    """Agent chooses uniformly randomly from valid moves."""
+class RandomAgent(ppg.AgentType):
+    """
+    Agent choosing uniformly randomly from among valid moves.
 
-    def __init__(self, **kwargs):
-        """Initialize the agent's attributes.
+    Parameters
+    ----------
+    name : str, optional
 
-        Args:
-            name: A keyword arg designating a name for the player.
-        """
-        if 'name' in kwargs:
+    Attributes
+    ----------
+    name : str
+    """
+
+    def __init__(self, **kwargs) -> None:
+
+        self.name: str
+        if 'name' in kwargs and isinstance(kwargs['name'], str):
             self.name = kwargs['name']
         else:
             self.name = 'Random Player'
 
-    def reset(self):
-        """Fulfills agent template requirement."""
-        pass
+    def reset(self) -> None:
+        """
+        Agent has no persistent attributes to reset.
+        """
 
-    def get_move(self, gamestate):
+    def get_move(self, gamestate: ppg.GamestateType) -> ppg.MoveType:
         """Choose randomly from all valid moves.
 
-        Note this method does not handle the IndexError thrown by
-        random.choice should the valid_moves list be empty.
+        This method does not handle the IndexError thrown should the
+        `get_moves` list be empty.
 
-        Args:
-            gamestate: An instance of a Gamestate class
+        Parameters
+        ----------
+        gamestate : GamestateType
+            The `Gamestate` from which to choose a move.
 
-        Returns:
-            An instance from the proper Move class corresponding to the
-            given gamestate.
+        Returns
+        -------
+        move : MoveType
         """
-        return random.choice(gamestate.valid_moves)
+
+        return random.choice(gamestate.get_moves())

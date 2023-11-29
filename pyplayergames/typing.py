@@ -5,6 +5,7 @@ Protocols for interfacing with the `pyplayergames` package.
 
 from __future__ import annotations
 from typing import Protocol, Self, Any
+import pyplayergames as ppg
 
 
 class MoveType(Protocol):
@@ -48,12 +49,12 @@ class GamestateType(Protocol):
     # Indicate if the game is over.
 
     def get_score(self) -> tuple[float, ...]: ...
-    # Heuristic value of the current state, indexed by `get_turn`.
+    # Heuristic value of the current state, indexed by `turn``.
     # Need only consider non-terminal states.
     # Higher values are better.
 
     def get_reward(self) -> tuple[float, ...]: ...
-    # Value of terminal states, indexed by `get_turn`.
+    # Value of terminal states, indexed by `turn`.
     # Higher values are better.
 
     def __hash__(self) -> int: ...
@@ -76,6 +77,7 @@ class MatchType(Protocol):
         agents: tuple[ppg.AgentType | None, ...],
         **kwargs: Any
     ) -> tuple[float, ...]: ...
+
 
 class AgentType(Protocol):
     """

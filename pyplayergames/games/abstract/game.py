@@ -1,189 +1,244 @@
-"""Gamestate and move class for and abstract game tree.
+"""
+Abstract
+========
 
-Defines a custom game tree for testing purposes.
+This module contains the logic and implementation for an abstracted
+tree-based game, intended for testing purposes.
+
 """
 
-from pyplayergames.games.template import GamestateTemplate, MoveTemplate
+from __future__ import annotations
+from typing import Any
+import pyplayergames as ppg
 
 
-class Edge(MoveTemplate):
-    """An edge in the abstract game tree.
+class Edge(ppg.MoveType):
+    """
+    Abstract move class.
 
     Effectively a wrapper for an integer; the integer is an index
-    to move from one vertex to one of the next vertices.
+    to move from one vertex to one of the next vertices in the tree.
+
+    Parameters
+    ----------
+    index : {0, 1, 2, ...}
+        The index of the next vertex to move to.
+
+    Raises
+    ------
+    TypeError
+        If `index` is not an integer.
+    ValueError
+        If `index` is a negative integer.
+
     """
 
-    def __init__(self, index):
-        """Initialize edge.
+    def __init__(self, index: int) -> None:
 
-        Args:
-            index: A positive integer corresponding to the index
-                of the vertex to move to.
-
-        Raises:
-            TypeError: If index is not an integer.
-            ValueError: If index is nonpositive.
-        """
-        if type(index) is not int:
+        if not isinstance(index, int):
             raise TypeError('Expected index input as an integer.')
-        if index <= 0:
-            raise ValueError('index should be positive.')
+        if index < 0:
+            raise ValueError('index should be nonnegative.')
 
-        self._index = index
+        self._index: int = index
 
-    def __str__(self):
-        """Return the index as a string."""
+    def __str__(self) -> str:
+        """
+        Return the index as a string.
+        """
+
         return str(self._index)
 
-    def __int__(self):
-        """Return the index."""
+    def __int__(self) -> int:
+        """
+        Return the index.
+        """
+
         return self._index
 
 
-class Tree(GamestateTemplate):
-    """Defines a custom abstract game tree for two or more players.
+class Node(ppg.GamestateType):
+    """
+    Abstract gamestate class.
 
-    Assumes turns alternate between the players in order. Tree is
-    endcoded as a list of lists with a tuple of values at each node,
-    representing the heuristic score at that node.
+    Defines a custom abstract game tree for one or more players. A
+    `Node` object encodes the gamestate attributes as well as references
+    to the next possible gamestates.
 
-    Example: Consider the following tree for 3 players, with vertex
-    values and edges labeled:
+    Parameters
+    ----------
+    children : tuple of `Node`
+        The children `Node` instances of the current instance.
+    players : {1, 2, 3, ...}
+        The number of players in the game. Should be constant throughout
+        the game.
+    turn : {0, 1, 2, ..., `players`-1}
+        The turn at the current node. Indexes the score tuple and the
+        reward tuple.
+    score : tuple of float
+        The assigned score at the current node. Indexed by the `turn`
+        attrbiute.
+    lower : float
+        The lowest attainable non-terminal score. Should be constant
+        throughout the game.
+    upper_sum : float
+        The greatest attainable non-terminal sum of scores. Should be
+        constant throughout the game.
 
-                                (1, 1, 1)
-                                /       |
-                             1 /        | 2
-                              /         |
-                        (1, 4, 4)       (0, 1, 2)
-                        /     |            /    |
-                     1 /      | 2       1 /     | 2
-                      /       |          /      |
-             (2, 3, 0)  (1, 1, 0)  (4, 0, 4)  (1, 1, 1)
-
-    It has the following list representation:
-    [(1.0, 1.0, 1.0),
-        [(1.0, 4.0, 4.0),
-         [(2.0, 3.0, 0.0)],
-         [(1.0, 1.0, 0.0)]],
-        [(0.0, 1.0, 2.0),
-         [(4.0, 0.0, 4.0)],
-         [(1.0, 1.0, 1.0)]]]
     """
 
-    def __init__(self, tree, players, upper, lower, upper_sum, turn=0):
-        """Initialize the game tree.
+    def __init__(
+        self,
+        children: tuple[Node, ...],
+        players: int,
+        turn: int,
+        score: tuple[float, ...],
+        lower: float,
+        upper_sum: float
+    ) -> None:
 
-        Args:
-            tree: A list of lists representing a game tree as in the
-                class docstring.
-            players: An integer number of players.
-            upper: A float that is the maximum score at the non-terminal
-                vertices.
-            lower: A float that is the minimum score at the non-terminal
-                vertices.
-            upper_sum: A float that is the maximum sum of all players
-                scores at non-terminal vertices.
-            turn: An integer index corresponding to the current turn.
-                First player is 0, second is 1, and so on.
+        self._children: tuple[Node, ...] = children
+        self.players: int = players
+        self._turn: int = turn
+        self._score: tuple[float, ...] = score
+        self.lower: float = lower
+        self.upper_sum: float = upper_sum
+
+    @classmethod
+    def build_tree(
+        cls,
+        players: int,
+        lower: float,
+        upper_sum: float,
+        turn: int,
+        score: tuple[float, ...],
+        *subtrees: list[Any]
+        ) -> Node:
         """
-        self.tree = tree
-        self._players = players
-        self._upper = upper
-        self._lower = lower
-        self._upper_sum = upper_sum
-        self._turn = turn
-        self._reward = None
+        Constructor method for building tree from list representation.
+
+        List representation of a tree is recursive; the first elements
+        of the list are the turn and score values, respectively. The
+        remaining elements are lists encoding the subtrees; these follow
+        the same representation as above. Terminal nodes have no
+        subtrees.
+
+        Parameters
+        ----------
+        players : int
+        lower : float
+        upper_sum : float
+        turn : {0, 1, 2, ..., players-1}
+        score : tuple of float
+        *subtrees : list of turn, score, and subtrees
+
+        Examples
+        --------
+        >>> tree_list = [0, (2.0, 0.0, 1.0),
+        ...              [1, (0.0, 0.0, 10.0),
+        ...               [2, (1.0, 1.0, 4.0)],
+        ...               [2, (0.0, 0.0, 10.0)]],
+        ...              [1, (2.0, 2.0, 1.0)],
+        ...              [1, (3.0, 0.0, 0.0)]]
+        >>> ppg.abstract.Node.build_tree(
+        ...     3,
+        ...     0.0,
+        ...     10.0,
+        ...     *tree_list
+        ... )
+
+        """
+        return Node(
+            tuple(cls.build_tree(players, lower, upper_sum, *subtree)
+                  for subtree in subtrees),
+            players,
+            turn,
+            score,
+            lower,
+            upper_sum
+        )
+
+    # Interface
 
     @property
-    def players(self):
-        """Return the number of players."""
-        return self._players
+    def turn(self) -> int:
+        """
+        Return the index of the current turn player.
+        """
 
-    @property
-    def upper(self):
-        """Return the highest obtainable non-terminal score."""
-        return self._upper
-
-    @property
-    def lower(self):
-        """Return the least obtainable non-terminal score."""
-        return self._lower
-
-    @property
-    def upper_sum(self):
-        """Return the highest obtainable sum of all scores."""
-        return self._upper_sum
-
-    @property
-    def turn(self):
-        """Return the index of the current turn player."""
         return self._turn
 
-    def get_next(self, move):
-        """Create a subtree object corresponding to the move input.
+    def get_moves(self) -> tuple[ppg.MoveType, ...]:
+        """
+        Return a list of all valid `Edge` instances from the node.
+        """
+
+        return tuple(Edge(i) for i in range(len(self._children)))
+
+
+    def get_next(self, move: ppg.MoveType) -> Node:
+        """
+        Return the next `Node` instance corresponding to the move input.
 
         As this is primarily used for testing, this does not check for
         validity of the move. Errors or unexpected behavior may occur.
 
-        Args:
-            move: An instance of the Edge class determining which
-                subtree to move to.
+        Parameters
+        ----------
+        move : Edge
 
-        Returns:
-            A new instance of the Tree class corresponding to the
-                subtree moved to by the provided move.
+        Returns
+        --------
+        Node
         """
-        next_turn = self.turn + 1
-        if next_turn == self.players:
-            next_turn = 0
 
-        return Tree(self.tree[int(move)],
-                    self.players,
-                    self.upper,
-                    self.lower,
-                    self.upper_sum,
-                    next_turn)
+        assert isinstance(move, Edge)
+        return self._children[int(move)]
 
-    @property
-    def valid_moves(self):
-        """Return a list of all legal moves.
-
-        Returns:
-            A list of Edge instances that lead to other vertices in
-            the tree from the current vertex.
+    def is_game_over(self) -> bool:
         """
-        return [Edge(i) for i in range(1, len(self.tree))]
+        Return True if the game is over and False otherwise.
 
-    def is_game_over(self):
-        """Return True if the game is over and False otherwise."""
-        return (len(self.tree) == 1)
-
-    @property
-    def reward(self):
-        """Reward players based on score in the terminal node.
-
-        Winner takes all method or 1.0 reward is evenly split among
-        those tying for first.
+        Game is defined to be over when the current `Node` instance has
+        no children.
         """
-        if self._reward is not None:
-            return self._reward
 
-        reward_tup = (0,) * self.players
-        best_score = float('-inf')
-        best_players = []
-        for player in range(self.players):
-            if self.tree[0][player] > best_score:
-                best_score = self.tree[0][player]
-                best_players = [player]
-            elif self.tree[0][player] == best_score:
-                best_players.append(player)
+        return not self._children
 
-        split_reward = 1.0 / len(best_players)
-        for player in best_players:
-            reward_tup[player] = split_reward
-        return reward_tup
+    def get_score(self) -> tuple[float, ...]:
+        """
+        Return assigned value of current node.
+        """
+        return self._score
 
-    @property
-    def score(self):
-        """Return the value of the current vertex of the tree."""
-        return self.tree[0]
+    def get_reward(self) -> tuple[float, ...]:
+        """
+        Return value of terminal states.
+
+        Reward values are calculated by designating the player with the
+        highest score at a terminal position as the winner; the winner
+        takes all. Ties split the reward.
+        """
+
+        if not self.is_game_over():
+            raise AttributeError(
+                'Reward attribute referenced before game is over.'
+            )
+
+        max_score = max(self._score)
+        ties = self._score.count(max_score)
+        value = 1.0 / ties
+        reward = []
+        for score in self._score:
+            if score == max_score:
+                reward.append(value)
+            else:
+                reward.append(0.0)
+        return tuple(reward)
+
+    def __hash__(self) -> int:
+        """
+        Hashing disabled for abstract game.
+        """
+
+        return 0

@@ -1,5 +1,5 @@
 """
-Checkers
+American Checkers
 ========
 
 This module contains the logic and implementation for the game of

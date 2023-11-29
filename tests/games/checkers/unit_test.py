@@ -1,7 +1,7 @@
 """
 Unit testing for pyplayergames\\games\\checkers.
 """
-# pylint: disable=C0115, C0116, C0413, W0212, W0104
+# pylint: disable=C0115, C0116, C0413, W0212, W0104, R0904
 
 # Temp code
 import sys
